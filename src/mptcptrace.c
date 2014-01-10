@@ -37,7 +37,7 @@ void printHelp(){
 int parseArgs(int argc, char *argv[]){
 	int c;
 
-	while ((c = getopt (argc, argv, "asr:f:o:F:")) != -1)
+	while ((c = getopt (argc, argv, "hasr:f:o:F:")) != -1)
 		switch (c){
 		case 's':
 			modules[GRAPH_SEQUENCE].activated = ACTIVE_MODULE;
@@ -50,6 +50,10 @@ int parseArgs(int argc, char *argv[]){
 			break;
 		case 'f':
 			filename = optarg;
+			break;
+		case 'h':
+			printHelp();
+			exit(0);
 			break;
 		case 'a':
 		   //ack_burst_graph =  ACK_BURST;
@@ -66,6 +70,8 @@ int parseArgs(int argc, char *argv[]){
 				fprintf (stderr,
 						"Unknown option character `\\x%x'.\n",
 						optopt);
+			printHelp();
+			exit(0);
 			break;
 		default:
 			abort ();
@@ -178,6 +184,7 @@ int main(int argc, char *argv[]){
 	printf("MPTCP trace V0.0 alpha : says Hello.\n");
 	if(parseArgs(argc,argv) != 0){
 		fprintf(stderr, "Could not parse the args...\n");
+		printHelp();
 		exit(1);
 	}
 	mainLoop();
