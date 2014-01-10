@@ -32,4 +32,4 @@ test-driver
 tests/.deps/
 tests/check_t1
 tests/check_t1.trs
-
+config.h

@@ -28,6 +28,11 @@
 char *filename = NULL;
 int offset_opt = -1;
 
+void printHelp(){
+	printf("mptcptrace help :\n");
+	printf("\t -f trace : mandatory, specify the trace to analyze\n");
+	printf("\t -s : generate sequence number graph\n");
+}
 
 int parseArgs(int argc, char *argv[]){
 	int c;

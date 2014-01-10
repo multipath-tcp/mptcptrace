@@ -42,7 +42,6 @@ void verticalLine(FILE* f, unsigned int x, unsigned int y, unsigned long h, int 
 void verticalLineTime(FILE* f, struct timeval tsx, unsigned int y, unsigned int h, int color){
 	fprintf(f,"%i\n",color);
 	fprintf(f,"line %li.%06li %u %li.%06li %u \n",tsx.tv_sec, tsx.tv_usec,y,tsx.tv_sec, tsx.tv_usec,y+h);
-	//fprintf(f,"line %li.%06li %u %li.%06li %u \n",mpm->ts.tv_sec, mpm->ts.tv_usec,start,mpm->ts.tv_sec, mpm->ts.tv_usec,start+len);
 }
 
 void diamondTime(FILE *f, struct timeval tsx, unsigned int y, int color){
