@@ -31,6 +31,8 @@
 
 typedef struct graphModule graphModule;
 typedef struct seqData seqData;
+typedef struct winFlightData winFlightData;
+
 
 void initSeq(void** graphData, MPTCPConnInfo *mci);
 void seqGrahSeq(mptcp_sf *msf, mptcp_map *seq,  void* graphData, MPTCPConnInfo *mi, int way);
@@ -42,9 +44,19 @@ void CISeq(mptcp_sf *msf, mptcp_map *seq,  void* graphData, MPTCPConnInfo *mi, i
 void CIAck(mptcp_sf *msf, mptcp_ack *ack,  void* graphData, MPTCPConnInfo *mi, int way);
 void destroyCI(void** graphData, MPTCPConnInfo *mci);
 
+void initWinFlight(void** graphData, MPTCPConnInfo *mci);
+void winFlightSeq(mptcp_sf *msf, mptcp_map *seq,  void* graphData, MPTCPConnInfo *mi, int way);
+void winFlightAck(mptcp_sf *msf, mptcp_ack *ack,  void* graphData, MPTCPConnInfo *mi, int way);
+void destroyWinFlight(void** graphData, MPTCPConnInfo *mci);
+
 struct seqData{
 	FILE *graph[WAYS];
 	OrderedList *seq[WAYS];
+};
+
+struct winFlightData{
+	FILE *graph[WAYS];
+	unsigned int rightEdge[WAYS];
 };
 
 struct graphModule{

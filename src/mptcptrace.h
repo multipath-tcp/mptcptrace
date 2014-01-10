@@ -36,7 +36,8 @@
 
 #define CONN_INFO			0
 #define GRAPH_SEQUENCE		1
-#define MAX_GRAPH			2
+#define WIN_FLIGHT			2
+#define MAX_GRAPH			3
 
 
 
@@ -104,7 +105,7 @@ struct mptcp_map{
 struct mptcp_ack{
 	u_char ack[ACK_SIZE];
 	struct timeval ts;
-	//unsigned int right_edge;
+	unsigned int right_edge;
 };
 
 struct mptcp_road{

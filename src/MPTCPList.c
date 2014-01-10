@@ -251,7 +251,8 @@ void updateListJoin(List* l,  struct sniff_ip *ip, struct sniff_tcp *tcp){
 }
 
 void printMPTCPSublflow(void* element, int pos, void* fix, void* acc){
-	printf("\tSubflow %d\n",pos);
+	mptcp_sf *msf = (mptcp_sf*) element;
+	printf("\tSubflow %d with wscale : %d %d\n",pos,msf->wscale[C2S], msf->wscale[S2C]);
 }
 void printMPTCPConnections(void* element, int pos, void* fix, void* acc){
 	printf("MPTCP connection %d\n",pos);

@@ -32,12 +32,13 @@ void printHelp(){
 	printf("mptcptrace help :\n");
 	printf("\t -f trace : mandatory, specify the trace to analyze\n");
 	printf("\t -s : generate sequence number graph\n");
+	printf("\t -F : generate MPTCP window/flight size\n");
 }
 
 int parseArgs(int argc, char *argv[]){
 	int c;
 
-	while ((c = getopt (argc, argv, "hasr:f:o:F:")) != -1)
+	while ((c = getopt (argc, argv, "hasr:f:o:F")) != -1)
 		switch (c){
 		case 's':
 			modules[GRAPH_SEQUENCE].activated = ACTIVE_MODULE;
@@ -59,7 +60,7 @@ int parseArgs(int argc, char *argv[]){
 		   //ack_burst_graph =  ACK_BURST;
 		   break;
 		case 'F':
-		   //flight_graph =  atoi(optarg);
+			modules[WIN_FLIGHT].activated = ACTIVE_MODULE;
 		   break;
 		case '?':
 			if (optopt == 'r')
@@ -134,6 +135,7 @@ void handle_MPTCP_DSS(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp, struc
 		if(*(mpdss+3) & 0x01){
 			mpack = new_mpa();
 			memcpy(&mpack->ack,mpdss+4,ACK_SIZE);
+			mpack->right_edge = ACK_MAP(mpack) + (ntohs(tcp->th_win) << msf->wscale[way]);
 			mpack->ts=ts;
 			//TODO calc right edge
 			if(modules[i].activated)  modules[i].handleMPTCPAck(msf, mpack, msf->mc_parent->graphdata[i], msf->mc_parent->mci, way);
