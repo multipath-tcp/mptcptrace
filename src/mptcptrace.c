@@ -124,7 +124,7 @@ void handle_MPTCP_DSS(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp, struc
 	mptcp_sf *msf = getSubflowFromIPTCP(l,ip,tcp,&way);
 	int ackoff = *(mpdss+3) & 0x01 ? 4 : 0;
 	if(msf==NULL){
-		fprintf(stderr,"Error DSS found but connection not found....\n");
+		//fprintf(stderr,"Error DSS found but connection not found....\n");
 		return;
 	}
 	int i;
