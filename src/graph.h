@@ -28,11 +28,13 @@
 
 #define ACTIVE_MODULE	1
 #define UNACTIVE_MODULE	0
+#define GP_INTERV		50
 
 typedef struct graphModule graphModule;
 typedef struct tcpGraphModule tcpGraphModule;
 
 typedef struct seqData seqData;
+typedef struct bwData bwData;
 typedef struct winFlightData winFlightData;
 typedef struct tcpWinFlightData tcpWinFlightData;
 
@@ -54,6 +56,19 @@ void destroyWinFlight(void** graphData, MPTCPConnInfo *mci);
 void initTcpWinFlight(void** graphData, MPTCPConnInfo *mci);
 void tcpWinFlight(struct sniff_ip *rawIP,struct sniff_tcp *rawTCP, mptcp_sf *msf, void* graphData, MPTCPConnInfo *mi, int way);
 void destroyTcpWinFlight(void** graphData, MPTCPConnInfo *mci);
+
+void initBW(void** graphData, MPTCPConnInfo *mci);
+void bWSeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq,  void* graphData, MPTCPConnInfo *mi, int way);
+void bWAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack,  void* graphData, MPTCPConnInfo *mi, int way);
+void destroyBW(void** graphData, MPTCPConnInfo *mci);
+
+struct bwData{
+	FILE *graph[WAYS];
+	mptcp_ack *mpa[WAYS];
+	int bucket[WAYS];
+	mptcp_ack *fmpa[WAYS];
+	//we may need other data to calculate the bandwidth
+};
 
 struct seqData{
 	FILE *graph[WAYS];
@@ -90,6 +105,6 @@ struct tcpGraphModule{
 
 extern graphModule modules[];
 extern tcpGraphModule tcpModules[];
-
+extern int gpInterv;
 
 #endif /* GRAPH_H_ */

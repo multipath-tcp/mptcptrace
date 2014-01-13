@@ -35,7 +35,13 @@ graphModule modules[]={
 		winFlightSeq,
 		winFlightAck,
 		destroyWinFlight,
-		}
+		},
+		{ACTIVE_MODULE,
+		"MPTCP goodput",
+		initBW,
+		bWSeq,
+		bWAck,
+		destroyBW}
 };
 
 tcpGraphModule tcpModules[]={
@@ -63,6 +69,11 @@ void verticalLineTime(FILE* f, struct timeval tsx, unsigned int y, unsigned int 
 void diamondTime(FILE *f, struct timeval tsx, unsigned int y, int color){
 	fprintf(f,"%i\n",color);
 	fprintf(f,"diamond %li.%06li %u\n",tsx.tv_sec, tsx.tv_usec,y);
+}
+
+void diamondTimeDouble(FILE *f, struct timeval tsx, double y, int color){
+	fprintf(f,"%i\n",color);
+	fprintf(f,"diamond %li.%06li %f\n",tsx.tv_sec, tsx.tv_usec,y);
 }
 
 void textTime(FILE *f, struct timeval tsx, unsigned int y, char* text, int color){
@@ -274,4 +285,58 @@ void tcpWinFlight(struct sniff_ip *rawIP, struct sniff_tcp *rawTCP, mptcp_sf *ms
 }
 void destroyTcpWinFlight(void** graphData, MPTCPConnInfo *mci){
 
+}
+
+/***
+ * MPTCP bandwidth calculation
+ */
+void initBW(void** graphData, MPTCPConnInfo *mci){
+	bwData* data = (bwData*) exitMalloc(sizeof(bwData));
+	*graphData = data;
+	data->graph[S2C] = openGraphFile("gput",mci->mc->id,S2C);
+	data->graph[C2S] = openGraphFile("gput",mci->mc->id,C2S);
+	writeHeader(data->graph[S2C],wayString[S2C],"MPTCP goodput",TIMEVAL,DOUBLE,LABELTIME,"Goodput");
+	writeHeader(data->graph[C2S],wayString[C2S],"MPTCP goodput",TIMEVAL,DOUBLE,LABELTIME,"Goodput");
+	data->mpa[S2C] = NULL;
+	data->mpa[C2S] = NULL;
+	data->bucket[S2C] = 0;
+	data->bucket[C2S] = 0;
+}
+
+void bWSeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq,  void* graphData, MPTCPConnInfo *mi, int way){
+	bwData *data = ((bwData*) graphData);
+	//DO something
+}
+
+void bWAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack,  void* graphData, MPTCPConnInfo *mi, int way){
+	bwData *data = ((bwData*) graphData);
+	struct timeval tmp = ack->ts;
+	struct timeval tmp2 = ack->ts;
+	if(data->mpa[way]==NULL){
+		data->mpa[way]=ack;
+		data->fmpa[way]=ack;
+	}
+	else{
+		if(ACK_MAP(ack) <= ACK_MAP(data->mpa[way]) )
+				return;
+		if(data->bucket[way] == gpInterv){
+			//TODO gestion des ack plus anciens !
+			tv_sub(&tmp,data->mpa[way]->ts);
+			diamondTimeDouble(data->graph[TOGGLE(way)],ack->ts,(ACK_MAP(ack) - ACK_MAP(data->mpa[way]))/(tmp.tv_sec+tmp.tv_usec/1000000.0) / 1000000.0,1);
+			data->bucket[way]=0;
+			data->mpa[way] = ack;
+
+		}
+		else
+			data->bucket[way]++;
+		tv_sub(&tmp2,data->fmpa[way]->ts);
+		diamondTimeDouble(data->graph[TOGGLE(way)],ack->ts,(ACK_MAP(ack) - ACK_MAP(data->fmpa[way]))/(tmp2.tv_sec+tmp2.tv_usec/1000000.0) / 1000000.0 ,2);
+	}
+
+
+}
+void destroyBW(void** graphData, MPTCPConnInfo *mci){
+	bwData *data = ((bwData*) *graphData);
+	fclose(data->graph[S2C]);
+	fclose(data->graph[C2S]);
 }

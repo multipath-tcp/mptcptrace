@@ -37,7 +37,8 @@
 #define CONN_INFO			0
 #define GRAPH_SEQUENCE		1
 #define WIN_FLIGHT			2
-#define MAX_GRAPH			3
+#define GRAPH_GOODPUT		3
+#define MAX_GRAPH			4
 
 #define TCP_WIN_FLIGHT		0
 #define TCP_MAX_GRAPH		1
