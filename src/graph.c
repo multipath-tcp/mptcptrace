@@ -36,7 +36,7 @@ graphModule modules[]={
 		winFlightAck,
 		destroyWinFlight,
 		},
-		{ACTIVE_MODULE,
+		{UNACTIVE_MODULE,
 		"MPTCP goodput",
 		initBW,
 		bWSeq,
