@@ -37,6 +37,14 @@ graphModule modules[]={
 		destroyWinFlight,
 		}
 };
+
+tcpGraphModule tcpModules[]={
+		{ACTIVE_MODULE,
+		"TCP flight size",
+		initTcpWinFlight,
+		tcpWinFlight,
+		destroyTcpWinFlight},
+};
 char* wayString[]={"s2c","c2s"};
 
 /******
@@ -106,7 +114,7 @@ int isReinjected(Node *n, List *seq){
 	return -1;
 }
 
-void seqGrahSeq(mptcp_sf *msf, mptcp_map *seq, void* graphData, MPTCPConnInfo *mi, int way){
+void seqGrahSeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq, void* graphData, MPTCPConnInfo *mi, int way){
 	seqData *data = ((seqData*) graphData);
 	Node *n = addElementOrderedReverse(seq,data->seq[way]);
 	int reinject = isReinjected(n,data->seq[way]->l);
@@ -115,7 +123,7 @@ void seqGrahSeq(mptcp_sf *msf, mptcp_map *seq, void* graphData, MPTCPConnInfo *m
 	verticalLineTime(data->graph[way],seq->ts,SEQ_MAP_START(seq),SEQ_MAP_LEN(seq),msf->id);
 }
 
-void seqGrahAck(mptcp_sf *msf, mptcp_ack *ack, void* graphData, MPTCPConnInfo *mi, int way){
+void seqGrahAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack, void* graphData, MPTCPConnInfo *mi, int way){
 	seqData *data = ((seqData*) graphData);
 	diamondTime(data->graph[TOGGLE(way)],ack->ts,ACK_MAP(ack),msf->id);
 }
@@ -134,10 +142,14 @@ void initCI(void** graphData, MPTCPConnInfo *mci){
 	printf("create global informations\n");
 	mci->unacked[S2C] = newOrderedList(NULL,compareMap);
 	mci->unacked[C2S] = newOrderedList(NULL,compareMap);
-	mci->lastack[S2C]=NULL;
-	mci->lastack[C2S]=NULL;
+	mci->lastack[S2C] = NULL;
+	mci->lastack[C2S] = NULL;
 }
-void CISeq(mptcp_sf *msf, mptcp_map *seq,  void* graphData, MPTCPConnInfo *mi, int way){
+
+
+
+
+void CISeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq,  void* graphData, MPTCPConnInfo *mi, int way){
 	int added;
 	if(mi->lastack[TOGGLE(way)] == NULL  ||  SEQ_MAP_END( seq ) >= ACK_MAP(mi->lastack[TOGGLE(way)]))
 		addElementOrderedReverseUnique(seq,mi->unacked[way],&added);
@@ -148,7 +160,7 @@ void stripUnack(mptcp_ack *ack, List *unacked){
 		removeHead(unacked);
 }
 
-void CIAck(mptcp_sf *msf, mptcp_ack *ack,  void* graphData, MPTCPConnInfo *mi, int way){
+void CIAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack,  void* graphData, MPTCPConnInfo *mi, int way){
 	stripUnack(ack, mi->unacked[TOGGLE(way)]->l);
 	if(mi->lastack[way] == NULL || ACK_MAP(mi->lastack[way]) < ACK_MAP(ack)){
 		mi->lastack[way] = ack;
@@ -172,43 +184,94 @@ void initWinFlight(void** graphData, MPTCPConnInfo *mci){
 	data->rightEdge[S2C] = 0;
 	data->rightEdge[C2S] = 0;
 }
-void winFlightSeq(mptcp_sf *msf, mptcp_map *seq,  void* graphData, MPTCPConnInfo *mi, int way){
+
+void sumFlight(void* element, int pos, void *fix, void *acc){
+	mptcp_sf *msf = (mptcp_sf*) element;
+	tcp_map *funa,*luna;
+	unsigned int *sum = (int*) acc;
+	int *way = (int*) fix;
+	if(msf->tcpUnacked[*way]->l->size > 0){
+		funa = (tcp_map*) msf->tcpUnacked[*way]->l->head->element;
+		luna = (tcp_map*) msf->tcpUnacked[*way]->l->tail->element;
+		*sum = (*sum) + (luna->end - funa->start);
+	}
+}
+
+void winFlightSeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq,  void* graphData, MPTCPConnInfo *mi, int way){
 	winFlightData *data = ((winFlightData*) graphData);
 	mptcp_map *funa,*luna;
+	unsigned int flightSum=0;
 	if(mi->unacked[way]->l->size > 0){
 		funa = (mptcp_map*) mi->unacked[way]->l->head->element;
 		luna = (mptcp_map*) mi->unacked[way]->l->tail->element;
-		diamondTime(data->graph[TOGGLE(way)],seq->ts,SEQ_MAP_END(luna) - SEQ_MAP_START(funa) ,2);
+		diamondTime(data->graph[way],seq->ts,SEQ_MAP_END(luna) - SEQ_MAP_START(funa) ,2);
 	}
+	apply(msf->mc_parent->mptcp_sfs,sumFlight, &way, &flightSum);
+	diamondTime(data->graph[way],seq->ts,flightSum ,3);
 }
-void winFlightAck(mptcp_sf *msf, mptcp_ack *ack,  void* graphData, MPTCPConnInfo *mi, int way){
+
+void winFlightAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack,  void* graphData, MPTCPConnInfo *mi, int way){
 	winFlightData *data = ((winFlightData*) graphData);
 	mptcp_map *funa,*luna;
+	unsigned int flightSum=0;
 	if(data->rightEdge[way] == 0 || data->rightEdge[way] < ack->right_edge){
 		data->rightEdge[way] = ack->right_edge;
 	}
 	if(mi->lastack[way] != NULL){
-		diamondTime(data->graph[way],ack->ts,data->rightEdge[way] - ACK_MAP(mi->lastack[way]),1);
+		diamondTime(data->graph[TOGGLE(way)],ack->ts,data->rightEdge[way] - ACK_MAP(mi->lastack[way]),1);
 	}
 	if(mi->unacked[TOGGLE(way)]->l->size > 0){
 		funa = (mptcp_map*) mi->unacked[TOGGLE(way)]->l->head->element;
 		luna = (mptcp_map*) mi->unacked[TOGGLE(way)]->l->tail->element;
-		diamondTime(data->graph[way],ack->ts,SEQ_MAP_END(luna) - SEQ_MAP_START(funa) ,2);
+		diamondTime(data->graph[TOGGLE(way)],ack->ts,SEQ_MAP_END(luna) - SEQ_MAP_START(funa) ,2);
 	}
-	/*
-	if(mi->lastack[way] == NULL){
-		//Ensemble des unack = flight size
-	}
-	else{
-		if(mi->unacked[TOGGLE(way)]->l->size > 0 ) {// et ack nouveau ?
-			una = (mptcp_map*) mi->unacked[TOGGLE(way)]->l->tail->element;
-			fprintf(stderr,"way %d size %d una %u lastack %u\n",way, mi->unacked[TOGGLE(way)]->l->size, SEQ_MAP_END(una), ACK_MAP(mi->lastack[way]));
-			diamondTime(data->graph[way],ack->ts,SEQ_MAP_START(una) - ACK_MAP(mi->lastack[way]) ,2);
-		}
-	}*/
+	apply(msf->mc_parent->mptcp_sfs,sumFlight, &way, &flightSum);
+	diamondTime(data->graph[way],ack->ts,flightSum ,3);
+
 }
 void destroyWinFlight(void** graphData, MPTCPConnInfo *mci){
 	winFlightData *data = ((winFlightData*) *graphData);
 	fclose(data->graph[S2C]);
 	fclose(data->graph[C2S]);
+}
+
+/****
+ * TCP win  and flight... As the name does not suggest, just take a look at the flight size.
+ */
+
+void updateTCPUnack(struct sniff_ip *rawIP, struct sniff_tcp *rawTCP,mptcp_sf *msf, int way){
+	tcp_map *seq = (tcp_map*)exitMalloc(sizeof(tcp_map));
+	seq->start = TCP_SEQ(rawTCP);
+	seq->end = seq->start + ntohs(rawIP->ip_len) - 4*(IP_HL(rawIP)) - 4*(TH_OFF(rawTCP));
+	int added;
+	if(msf->tcpLastAck[TOGGLE(way)] == NULL || seq->start >= *(msf->tcpLastAck[TOGGLE(way)]))
+		addElementOrderedReverseUnique(seq,msf->tcpUnacked[way],&added);
+}
+
+void updateLastAck(struct sniff_tcp *rawTCP,mptcp_sf *msf, int way){
+	unsigned int *ack;
+	if(!ACK_SET(rawTCP)) return;
+	ack = (unsigned int*)exitMalloc(sizeof(unsigned int));
+	*ack = TCP_ACK(rawTCP);
+	if(msf->tcpLastAck[way] == NULL || msf->tcpLastAck[way] < ack)
+		msf->tcpLastAck[way] = ack;
+}
+void stripTCPUnack(struct sniff_tcp *rawTCP, List *unacked){
+	unsigned int *ack = (unsigned int*)exitMalloc(sizeof(unsigned int));
+	*ack = TCP_ACK(rawTCP);
+	if(!ACK_SET(rawTCP)) return;
+	while(unacked->size > 0 && ((tcp_map*)unacked->head->element)->end <= *ack)
+		removeHead(unacked);
+}
+void initTcpWinFlight(void** graphData, MPTCPConnInfo *mci){
+
+}
+void tcpWinFlight(struct sniff_ip *rawIP, struct sniff_tcp *rawTCP, mptcp_sf *msf, void* graphData, MPTCPConnInfo *mi, int way){
+	updateTCPUnack(rawIP,rawTCP,msf,way);
+	updateLastAck(rawTCP,msf,way);
+	stripTCPUnack(rawTCP,msf->tcpUnacked[TOGGLE(way)]->l);
+
+}
+void destroyTcpWinFlight(void** graphData, MPTCPConnInfo *mci){
+
 }

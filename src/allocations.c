@@ -19,6 +19,7 @@
 #include "mptcptrace.h"
 #include "TCPOptions.h"
 #include "allocations.h"
+#include "MPTCPList.h"
 
 mptcp_map* new_mpm(){
 	mptcp_map *mpm = (mptcp_map*) malloc(sizeof(mptcp_map));
@@ -49,6 +50,10 @@ void build_msf(struct sniff_ip *ip, struct sniff_tcp *tcp, mptcp_sf *msf, int re
 		msf->mseqs[C2S] = newList(NULL);
 		msf->macks[S2C] = newList(NULL);
 		msf->macks[C2S] = newList(NULL);
+		msf->tcpUnacked[C2S] = newOrderedList(NULL,compareTcpMap);
+		msf->tcpUnacked[S2C] = newOrderedList(NULL,compareTcpMap);
+		msf->tcpLastAck[C2S] = NULL;
+		msf->tcpLastAck[S2C] = NULL;
 	}
 	msf->mc_parent = NULL;
 }

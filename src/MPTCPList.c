@@ -33,6 +33,19 @@ int compareMap(void *e1, void *e2){
 	return (SEQ_MAP_START(m1)>SEQ_MAP_START(m2)) ? 1 : 0;
 }
 
+int compareTcpMap(void *e1, void *e2){
+	tcp_map* m1 = (tcp_map *)e1;
+	tcp_map* m2 = (tcp_map *)e2;
+	if(m1->start < m2->start) return -1;
+	return (m1->start > m2->start) ? 1 : 0;
+}
+
+int compareInt(void *e1, void *e2){
+	unsigned int* i1 = (unsigned int *)e1;
+	unsigned int* i2 = (unsigned int *)e2;
+	if(i1 < i2) return -1;
+	return i1 > i2 ? 1 : 0;
+}
 int sublfowsEqual(mptcp_sf* s1,  mptcp_sf* s2){
 	if(memcmp(&s1->ip_dst,&s2->ip_dst,sizeof(struct in_addr)) == 0 &&
 			memcmp(&s1->ip_src, &s2->ip_src,sizeof(struct in_addr)) == 0 &&
@@ -98,6 +111,7 @@ void add_MPTCP_conn_syn(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp){
 		mc->id = l->size;
 		mc->mci->mc = mc;
 		for(i=0;i<MAX_GRAPH;i++) if(modules[i].activated)  modules[i].initModule(&mc->graphdata[i],mc->mci);
+		for(i=0;i<TCP_MAX_GRAPH;i++) if(tcpModules[i].activated) tcpModules[i].destroyModule(&mc->graphdata[i],mc->mci);
 		u_char* mpcapa = first_MPTCP_sub(tcp,MPTCP_SUB_CAPABLE);
 		memcpy(&mc->client_key, mpcapa+4, KEY_SIZE);
 		//TODO free them
@@ -266,5 +280,6 @@ void destroyModules(void* element, int pos, void* fix, void* acc){
 	int i;
 	mptcp_conn *mc = (mptcp_conn*) element;
 	for(i=0;i<MAX_GRAPH;i++) if(modules[i].activated) modules[i].destroyModule(&mc->graphdata[i],mc->mci);
+	for(i=0;i<TCP_MAX_GRAPH;i++) if(tcpModules[i].activated) tcpModules[i].destroyModule(&mc->graphdata[i],mc->mci);
 }
 

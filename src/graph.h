@@ -30,24 +30,30 @@
 #define UNACTIVE_MODULE	0
 
 typedef struct graphModule graphModule;
+typedef struct tcpGraphModule tcpGraphModule;
+
 typedef struct seqData seqData;
 typedef struct winFlightData winFlightData;
-
+typedef struct tcpWinFlightData tcpWinFlightData;
 
 void initSeq(void** graphData, MPTCPConnInfo *mci);
-void seqGrahSeq(mptcp_sf *msf, mptcp_map *seq,  void* graphData, MPTCPConnInfo *mi, int way);
-void seqGrahAck(mptcp_sf *msf, mptcp_ack *ack,  void* graphData, MPTCPConnInfo *mi, int way);
+void seqGrahSeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq,  void* graphData, MPTCPConnInfo *mi, int way);
+void seqGrahAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack,  void* graphData, MPTCPConnInfo *mi, int way);
 void destroySeq(void** graphData, MPTCPConnInfo *mci);
 
 void initCI(void** graphData, MPTCPConnInfo *mci);
-void CISeq(mptcp_sf *msf, mptcp_map *seq,  void* graphData, MPTCPConnInfo *mi, int way);
-void CIAck(mptcp_sf *msf, mptcp_ack *ack,  void* graphData, MPTCPConnInfo *mi, int way);
+void CISeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq,  void* graphData, MPTCPConnInfo *mi, int way);
+void CIAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack,  void* graphData, MPTCPConnInfo *mi, int way);
 void destroyCI(void** graphData, MPTCPConnInfo *mci);
 
 void initWinFlight(void** graphData, MPTCPConnInfo *mci);
-void winFlightSeq(mptcp_sf *msf, mptcp_map *seq,  void* graphData, MPTCPConnInfo *mi, int way);
-void winFlightAck(mptcp_sf *msf, mptcp_ack *ack,  void* graphData, MPTCPConnInfo *mi, int way);
+void winFlightSeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq,  void* graphData, MPTCPConnInfo *mi, int way);
+void winFlightAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack,  void* graphData, MPTCPConnInfo *mi, int way);
 void destroyWinFlight(void** graphData, MPTCPConnInfo *mci);
+
+void initTcpWinFlight(void** graphData, MPTCPConnInfo *mci);
+void tcpWinFlight(struct sniff_ip *rawIP,struct sniff_tcp *rawTCP, mptcp_sf *msf, void* graphData, MPTCPConnInfo *mi, int way);
+void destroyTcpWinFlight(void** graphData, MPTCPConnInfo *mci);
 
 struct seqData{
 	FILE *graph[WAYS];
@@ -59,16 +65,31 @@ struct winFlightData{
 	unsigned int rightEdge[WAYS];
 };
 
+struct tcpWinFlightData{
+
+};
+
 struct graphModule{
 	int activated;
 	char *name;
 	void (*initModule)(void** graphData, MPTCPConnInfo *mci);
 	//maybe pass the raw tcp packet.
-	void (*handleMPTCPSeq)(mptcp_sf *msf, mptcp_map *seq, void* graphData, MPTCPConnInfo *mi, int way);
-	void (*handleMPTCPAck)(mptcp_sf *msf, mptcp_ack *ack, void* graphData, MPTCPConnInfo *mi, int way);
+	void (*handleMPTCPSeq)(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq, void* graphData, MPTCPConnInfo *mi, int way);
+	void (*handleMPTCPAck)(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack, void* graphData, MPTCPConnInfo *mi, int way);
 	void (*destroyModule)(void** graphData, MPTCPConnInfo *mci);
 };
+
+struct tcpGraphModule{
+	int activated;
+	char *name;
+	void (*initModule)(void** graphData, MPTCPConnInfo *mci);
+	//maybe pass the raw tcp packet.
+	void (*handleTCP)(struct sniff_ip *rawIP,struct sniff_tcp *rawTCP, mptcp_sf *msf, void* graphData, MPTCPConnInfo *mi, int way);
+	void (*destroyModule)(void** graphData, MPTCPConnInfo *mci);
+};
+
 extern graphModule modules[];
+extern tcpGraphModule tcpModules[];
 
 
 #endif /* GRAPH_H_ */

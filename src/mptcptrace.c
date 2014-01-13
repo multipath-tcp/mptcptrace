@@ -123,6 +123,8 @@ void handle_MPTCP_DSS(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp, struc
 		return;
 	}
 	int i;
+	//TODO gérer la partie TCP avant les call, retirer le raw TCP des fo modules ?
+	for(i=0;i<TCP_MAX_GRAPH;i++) if(modules[i].activated)  tcpModules[i].handleTCP(ip,tcp, msf, msf->mc_parent->graphdata[i], msf->mc_parent->mci, way);
 	for(i=0;i<MAX_GRAPH;i++){
 		if(*(mpdss+3) & 0x04){
 			mpmap = new_mpm();
@@ -130,15 +132,14 @@ void handle_MPTCP_DSS(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp, struc
 			memcpy(&mpmap->len,mpdss+4+ackoff+8,LEN_SIZE);
 			mpmap->ts=ts;
 			mpmap->msf = msf;
-			if(modules[i].activated) modules[i].handleMPTCPSeq(msf, mpmap, msf->mc_parent->graphdata[i], msf->mc_parent->mci, way);
+			if(modules[i].activated) modules[i].handleMPTCPSeq(tcp, msf, mpmap, msf->mc_parent->graphdata[i], msf->mc_parent->mci, way);
 		}
 		if(*(mpdss+3) & 0x01){
 			mpack = new_mpa();
 			memcpy(&mpack->ack,mpdss+4,ACK_SIZE);
 			mpack->right_edge = ACK_MAP(mpack) + (ntohs(tcp->th_win) << msf->wscale[way]);
 			mpack->ts=ts;
-			//TODO calc right edge
-			if(modules[i].activated)  modules[i].handleMPTCPAck(msf, mpack, msf->mc_parent->graphdata[i], msf->mc_parent->mci, way);
+			if(modules[i].activated)  modules[i].handleMPTCPAck(tcp, msf, mpack, msf->mc_parent->graphdata[i], msf->mc_parent->mci, way);
 		}
 	}
 }

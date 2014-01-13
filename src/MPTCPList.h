@@ -30,5 +30,7 @@ void printAllConnections(List *l);
 void destroyModules(void* element, int pos, void* fix, void* acc);
 
 int compareMap(void *e1, void *e2);
+int compareInt(void *e1, void *e2);
+int compareTcpMap(void *e1, void *e2);
 
 #endif /* MPTCPLIST_H_ */

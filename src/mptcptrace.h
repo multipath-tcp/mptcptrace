@@ -39,11 +39,15 @@
 #define WIN_FLIGHT			2
 #define MAX_GRAPH			3
 
+#define TCP_WIN_FLIGHT		0
+#define TCP_MAX_GRAPH		1
+
 
 
 typedef struct mptcp_sf mptcp_sf;
 typedef struct mptcp_conn mptcp_conn;
 typedef struct mptcp_map mptcp_map;
+typedef struct tcp_map tcp_map;
 typedef struct mptcp_ack mptcp_ack;
 typedef struct mptcp_road mptcp_road;
 typedef struct graph_files graph_files;
@@ -83,6 +87,10 @@ struct mptcp_sf{
 	List* mseqs[2];
 	List* macks[2];
 	u_char wscale[2];
+
+	//unacked by subflow
+	OrderedList *tcpUnacked[WAYS];
+	unsigned int *tcpLastAck[WAYS];
 };
 
 struct mptcp_conn{
@@ -92,6 +100,7 @@ struct mptcp_conn{
 	u_char server_key[KEY_SIZE];
 
 	void* graphdata[MAX_GRAPH];
+	void* tcpgraphdata[TCP_MAX_GRAPH];
 	MPTCPConnInfo *mci;
 };
 
@@ -115,10 +124,9 @@ struct mptcp_road{
 	FILE *output;
 };
 
-struct seq_block{
+struct tcp_map{
 	unsigned int start;
 	unsigned int end;
-	int sf;
 };
 
 
@@ -193,6 +201,9 @@ struct sniff_tcp {
 #define SEQ_MAP_LEN(mpm) ((unsigned int)(ntohs(*((int*)(&mpm->len)))))
 #define SEQ_MAP_END(mpm) (SEQ_MAP_START(mpm) + SEQ_MAP_LEN(mpm))
 #define ACK_MAP(mpa) ((unsigned int)(ntohl(*((int*)(&mpa->ack)))))
+
+#define TCP_ACK(tcp) ((unsigned int)(ntohl(tcp->th_ack)))
+#define TCP_SEQ(tcp) ((unsigned int)(ntohl(tcp->th_seq)))
 
 #define MAX_TCP_HEADER(tcp) (((u_char*)(tcp+1))+(TH_OFF(tcp)*4-20))
 #define OPTION_TCP_HEADER(tcp) ((u_char*)(tcp+1))
