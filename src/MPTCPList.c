@@ -196,8 +196,10 @@ void add_MPTCP_join_synack(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp){
 	build_msf(ip,tcp,&msfr,REVERT,0);
 
 	msf = getSubflow(l,&msfr);
-	if(msf==NULL)
+	if(msf==NULL){
 		fprintf(stderr, "Warning, unfound syn...\n");
+		return;
+	}
 
 	u_char* wscale = next_opt_x(OPTION_TCP_HEADER(tcp),MAX_TCP_HEADER(tcp), TCP_OPT_WSCALE);
 	if(wscale)
