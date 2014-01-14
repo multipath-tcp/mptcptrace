@@ -53,6 +53,7 @@ tcpGraphModule tcpModules[]={
 };
 char* wayString[]={"s2c","c2s"};
 
+
 /******
  * helper
  */
@@ -118,7 +119,8 @@ int isReinjected(Node *n, List *seq){
 	mptcp_map *prevmap = n->previous == NULL ? NULL : (mptcp_map*) n->previous->element;
 	mptcp_map *currmap =  (mptcp_map*) n->element;
 
-	if(n->previous != NULL && SEQ_MAP_END(prevmap) > SEQ_MAP_START(currmap) && prevmap->msf != currmap->msf){
+	//if(n->previous != NULL && SEQ_MAP_END(prevmap) > SEQ_MAP_START(currmap) && prevmap->msf != currmap->msf){
+	if(n->previous != NULL && afterUI(SEQ_MAP_END(prevmap) , SEQ_MAP_START(currmap)) && prevmap->msf != currmap->msf){
 		return prevmap->msf->id;
 	}
 
@@ -162,18 +164,21 @@ void initCI(void** graphData, MPTCPConnInfo *mci){
 
 void CISeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq,  void* graphData, MPTCPConnInfo *mi, int way){
 	int added;
-	if(mi->lastack[TOGGLE(way)] == NULL  ||  SEQ_MAP_END( seq ) >= ACK_MAP(mi->lastack[TOGGLE(way)]))
+	//if(mi->lastack[TOGGLE(way)] == NULL  ||  SEQ_MAP_END( seq ) >= ACK_MAP(mi->lastack[TOGGLE(way)]))
+	if(mi->lastack[TOGGLE(way)] == NULL  ||  afterOrEUI(SEQ_MAP_END( seq ), ACK_MAP(mi->lastack[TOGGLE(way)])))
 		addElementOrderedReverseUnique(seq,mi->unacked[way],&added);
 }
 
 void stripUnack(mptcp_ack *ack, List *unacked){
-	while(unacked->size > 0 && SEQ_MAP_END( ((mptcp_map*)unacked->head->element) ) <= ACK_MAP(ack))
+	//while(unacked->size > 0 && SEQ_MAP_END( ((mptcp_map*)unacked->head->element) ) <= ACK_MAP(ack))
+	while(unacked->size > 0 && beforeOrEUI(SEQ_MAP_END( ((mptcp_map*)unacked->head->element) ) , ACK_MAP(ack)))
 		removeHead(unacked);
 }
 
 void CIAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack,  void* graphData, MPTCPConnInfo *mi, int way){
 	stripUnack(ack, mi->unacked[TOGGLE(way)]->l);
-	if(mi->lastack[way] == NULL || ACK_MAP(mi->lastack[way]) < ACK_MAP(ack)){
+	//if(mi->lastack[way] == NULL || ACK_MAP(mi->lastack[way]) < ACK_MAP(ack)){
+	if(mi->lastack[way] == NULL || beforeUI(ACK_MAP(mi->lastack[way]) , ACK_MAP(ack))){
 		mi->lastack[way] = ack;
 	}
 
@@ -221,11 +226,15 @@ void winFlightSeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq,  void
 	diamondTime(data->graph[way],seq->ts,flightSum ,3);
 }
 
+
+
 void winFlightAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack,  void* graphData, MPTCPConnInfo *mi, int way){
 	winFlightData *data = ((winFlightData*) graphData);
 	mptcp_map *funa,*luna;
 	unsigned int flightSum=0;
-	if(data->rightEdge[way] == 0 || data->rightEdge[way] < ack->right_edge){
+	//if(data->rightEdge[way] == 0 || data->rightEdge[way] < ack->right_edge){
+	//TODO handle wrap around
+	if(data->rightEdge[way] == 0 || beforeUI(data->rightEdge[way], ack->right_edge)){
 		data->rightEdge[way] = ack->right_edge;
 	}
 	if(mi->lastack[way] != NULL){
@@ -255,7 +264,8 @@ void updateTCPUnack(struct sniff_ip *rawIP, struct sniff_tcp *rawTCP,mptcp_sf *m
 	seq->start = TCP_SEQ(rawTCP);
 	seq->end = seq->start + ntohs(rawIP->ip_len) - 4*(IP_HL(rawIP)) - 4*(TH_OFF(rawTCP));
 	int added;
-	if(msf->tcpLastAck[TOGGLE(way)] == NULL || seq->start >= *(msf->tcpLastAck[TOGGLE(way)]))
+	//if(msf->tcpLastAck[TOGGLE(way)] == NULL || seq->start >= *(msf->tcpLastAck[TOGGLE(way)]))
+	if(msf->tcpLastAck[TOGGLE(way)] == NULL || afterOrEUI(seq->start , *(msf->tcpLastAck[TOGGLE(way)])))
 		addElementOrderedReverseUnique(seq,msf->tcpUnacked[way],&added);
 }
 
@@ -264,14 +274,16 @@ void updateLastAck(struct sniff_tcp *rawTCP,mptcp_sf *msf, int way){
 	if(!ACK_SET(rawTCP)) return;
 	ack = (unsigned int*)exitMalloc(sizeof(unsigned int));
 	*ack = TCP_ACK(rawTCP);
-	if(msf->tcpLastAck[way] == NULL || msf->tcpLastAck[way] < ack)
+	//if(msf->tcpLastAck[way] == NULL || msf->tcpLastAck[way] < ack)
+	if(msf->tcpLastAck[way] == NULL || beforeUI(*(msf->tcpLastAck[way]) , *ack))
 		msf->tcpLastAck[way] = ack;
 }
 void stripTCPUnack(struct sniff_tcp *rawTCP, List *unacked){
 	unsigned int *ack = (unsigned int*)exitMalloc(sizeof(unsigned int));
 	*ack = TCP_ACK(rawTCP);
 	if(!ACK_SET(rawTCP)) return;
-	while(unacked->size > 0 && ((tcp_map*)unacked->head->element)->end <= *ack)
+	//while(unacked->size > 0 && ((tcp_map*)unacked->head->element)->end <= *ack)
+	while(unacked->size > 0 && beforeOrEUI(((tcp_map*)unacked->head->element)->end, *ack))
 		removeHead(unacked);
 }
 void initTcpWinFlight(void** graphData, MPTCPConnInfo *mci){
@@ -317,7 +329,8 @@ void bWAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack,  void* graph
 		data->fmpa[way]=ack;
 	}
 	else{
-		if(ACK_MAP(ack) <= ACK_MAP(data->mpa[way]) )
+		//if(ACK_MAP(ack) <= ACK_MAP(data->mpa[way]) )
+		if(beforeOrEUI(ACK_MAP(ack) , ACK_MAP(data->mpa[way]) ))
 				return;
 		if(data->bucket[way] == gpInterv){
 			//TODO gestion des ack plus anciens !

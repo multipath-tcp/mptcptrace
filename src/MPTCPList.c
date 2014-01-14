@@ -26,25 +26,46 @@
 #include "graph.h"
 #include "timingTools.h"
 
+
+int beforeUI(unsigned int ui1, unsigned int ui2){
+	return (int)(ui1-ui2)<0;
+}
+
+int afterUI(unsigned int ui1, unsigned int ui2){
+	return beforeUI(ui2,ui1);
+}
+
+int afterOrEUI(unsigned int ui1, unsigned int ui2){
+	return !beforeUI(ui1,ui2);
+}
+
+int beforeOrEUI(unsigned int ui1, unsigned int ui2){
+	return !afterUI(ui1,ui2);
+}
+
 int compareMap(void *e1, void *e2){
 	mptcp_map* m1 = (mptcp_map *)e1;
 	mptcp_map* m2 = (mptcp_map *)e2;
-	if(SEQ_MAP_START(m1)<SEQ_MAP_START(m2)) return -1;
-	return (SEQ_MAP_START(m1)>SEQ_MAP_START(m2)) ? 1 : 0;
+	if(beforeUI(SEQ_MAP_START(m1),SEQ_MAP_START(m2))) return -1;
+	return afterUI(SEQ_MAP_START(m1),SEQ_MAP_START(m2)) ? 1 : 0;
+	//if(SEQ_MAP_START(m1)<SEQ_MAP_START(m2)) return -1;
+	//return (SEQ_MAP_START(m1)>SEQ_MAP_START(m2)) ? 1 : 0;
 }
 
 int compareTcpMap(void *e1, void *e2){
 	tcp_map* m1 = (tcp_map *)e1;
 	tcp_map* m2 = (tcp_map *)e2;
-	if(m1->start < m2->start) return -1;
-	return (m1->start > m2->start) ? 1 : 0;
+	if(beforeUI(m1->start , m2->start)) return -1;
+	return (afterUI(m1->start , m2->start)) ? 1 : 0;
+	//if(m1->start < m2->start) return -1;
+	//return (m1->start > m2->start) ? 1 : 0;
 }
 
 int compareInt(void *e1, void *e2){
 	unsigned int* i1 = (unsigned int *)e1;
 	unsigned int* i2 = (unsigned int *)e2;
-	if(i1 < i2) return -1;
-	return i1 > i2 ? 1 : 0;
+	if(beforeUI(*i1 ,*i2)) return -1;
+	return afterUI(*i1 , *i2) ? 1 : 0;
 }
 int sublfowsEqual(mptcp_sf* s1,  mptcp_sf* s2){
 	if(memcmp(&s1->ip_dst,&s2->ip_dst,sizeof(struct in_addr)) == 0 &&

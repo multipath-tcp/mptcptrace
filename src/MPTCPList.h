@@ -33,4 +33,9 @@ int compareMap(void *e1, void *e2);
 int compareInt(void *e1, void *e2);
 int compareTcpMap(void *e1, void *e2);
 
+int beforeUI(unsigned int ui1, unsigned int ui2);
+int afterUI(unsigned int ui1, unsigned int ui2);
+int afterOrEUI(unsigned int ui1, unsigned int ui2);
+int beforeOrEUI(unsigned int ui1, unsigned int ui2);
+
 #endif /* MPTCPLIST_H_ */
