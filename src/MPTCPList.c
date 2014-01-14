@@ -145,8 +145,43 @@ void add_MPTCP_conn_syn(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp){
 	}
 }
 
-void add_MPTCP_conn_synack(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp){
+void add_MPTCP_conn_thirdAck(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp, List *lostSynCapable){
+	mptcp_sf msfs,*msf;
+	int i;
+	build_msf(ip,tcp,&msfs,DONOTREVERT,0);
+	msf = getSubflow(l,&msfs);
+	if(msf==NULL){
+		fprintf(stderr,"syn lost, looking to recover...\n");
+		msf = search(lostSynCapable,sublfowsEqualWrapper,&msfs,NULL);
+		if(msf != NULL){
+			fprintf(stderr,"Find him in the lost list...\n");
+			//consider the same scale...
+			msf->wscale[C2S] = msf->wscale[S2C];
+			mptcp_conn *mc = (mptcp_conn*) exitMalloc(sizeof(mptcp_conn));
+			MPTCPConnInfo *mci = (MPTCPConnInfo *) exitMalloc(sizeof(MPTCPConnInfo));
+			mc->mci = mci;
+			mc->id = l->size;
+			mc->mci->mc = mc;
+			for(i=0;i<MAX_GRAPH;i++) if(modules[i].activated)  modules[i].initModule(&mc->graphdata[i],mc->mci);
+			for(i=0;i<TCP_MAX_GRAPH;i++) if(tcpModules[i].activated) tcpModules[i].destroyModule(&mc->graphdata[i],mc->mci);
+			u_char* mpcapa = first_MPTCP_sub(tcp,MPTCP_SUB_CAPABLE);
+			memcpy(&mc->client_key, mpcapa+4, KEY_SIZE);
+			memcpy(&mc->server_key, mpcapa+4+KEY_SIZE, KEY_SIZE);
+			//TODO free them
+			mc->mptcp_sfs = newList(NULL);
+			fprintf(stderr,"Fixing mc_parent...\n");
+			msf->mc_parent = mc;
+			msf->id=mc->mptcp_sfs->size;
+			//TODO we should remove msf from the lost list
+			addElementHead(msf,mc->mptcp_sfs);
+			addElementHead(mc,l);
+		}
+	}
+}
+
+void add_MPTCP_conn_synack(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp, List *lostSynCapable){
 	mptcp_sf msfr;
+	mptcp_sf *msfSynLost;
 	build_msf(ip,tcp,&msfr,REVERT,0);
 	mptcp_sf *msf = getSubflow(l,&msfr);
 	if(msf){
@@ -165,15 +200,22 @@ void add_MPTCP_conn_synack(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp){
 		fprintf(stderr, "well done, we find him  ! ..... \n");
 	}
 	else{
-		fprintf(stderr, "could not find syn, sorry...\n");
+		msfSynLost = (mptcp_sf*) exitMalloc(sizeof(mptcp_sf));
+		build_msf(ip,tcp,msfSynLost,REVERT,1);
+		u_char* wscale = next_opt_x(OPTION_TCP_HEADER(tcp),MAX_TCP_HEADER(tcp), TCP_OPT_WSCALE);
+		if(wscale)
+			msfSynLost->wscale[S2C] = *(wscale+2);
+		addElementHead(msfSynLost,lostSynCapable);
+		//TODO create a msf, put in a special list, lost syn...
+		fprintf(stderr, "could not find syn, put him in backup list...\n");
 	}
 }
 
-void updateListCapable(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp){
+void updateListCapable(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp, List *lostSynCapable){
 	if(SYN_SET(tcp)){
 		if(ACK_SET(tcp)){
 			//TODO
-			add_MPTCP_conn_synack(l, ip, tcp);
+			add_MPTCP_conn_synack(l, ip, tcp, lostSynCapable);
 		}
 		else{
 			add_MPTCP_conn_syn(l, ip, tcp);
@@ -182,6 +224,7 @@ void updateListCapable(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp){
 	else{
 		if(ACK_SET(tcp)){
 			fprintf(stderr, "3 in 3HWS\n");
+			add_MPTCP_conn_thirdAck(l,ip,tcp,lostSynCapable);
 		}
 		else{
 			printf("MMMMmmmmm \n");

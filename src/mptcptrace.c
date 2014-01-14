@@ -157,7 +157,9 @@ int mainLoop(){
 	struct sniff_tcp *tcp_segment;
 	struct sniff_ip *ip_packet;
 	List *l;
+	List *lostSynCapable;
 	l = newList(NULL);
+	lostSynCapable = newList(NULL);
 	if(openFile(&offset,&handle) != 0){
 		fprintf(stderr,"Couldn't open the file %s\n",filename);
 		exit(1);
@@ -170,7 +172,7 @@ int mainLoop(){
 				tcp_segment=(struct sniff_tcp*) (packet + offset + IP_HL((struct sniff_ip *) (packet + offset)) * 4);
 				struct timeval ts;
 				if(isMPTCP_capable(tcp_segment))
-					updateListCapable(l,ip_packet,tcp_segment);
+					updateListCapable(l,ip_packet,tcp_segment,lostSynCapable);
 
 				if(isMPTCP_join(tcp_segment))
 					updateListJoin(l,ip_packet,tcp_segment);
