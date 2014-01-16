@@ -33,7 +33,7 @@ void printHelp(){
 	printf("mptcptrace help :\n");
 	printf("\t -f trace : mandatory, specify the trace to analyze\n");
 	printf("\t -s : generate sequence number graph\n");
-	printf("\t -F : generate MPTCP window/flight size\n");
+	printf("\t -F : generate MPTCP window/flight size/tcp subflow flight sizes' sum and right edge/ack graph\n");
 	printf("\t -G x : generate MPTCP goodput, interval is defined by x\n");
 }
 
