@@ -77,6 +77,7 @@ struct seqData{
 
 struct winFlightData{
 	FILE *graph[WAYS];
+	FILE *graphRE[WAYS];
 	unsigned int rightEdge[WAYS];
 };
 

@@ -178,7 +178,7 @@ void stripUnack(mptcp_ack *ack, List *unacked){
 void CIAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack,  void* graphData, MPTCPConnInfo *mi, int way){
 	stripUnack(ack, mi->unacked[TOGGLE(way)]->l);
 	//if(mi->lastack[way] == NULL || ACK_MAP(mi->lastack[way]) < ACK_MAP(ack)){
-	if(mi->lastack[way] == NULL || beforeUI(ACK_MAP(mi->lastack[way]) , ACK_MAP(ack))){
+	if(mi->lastack[way] == NULL || beforeOrEUI(ACK_MAP(mi->lastack[way]) , ACK_MAP(ack))){
 		mi->lastack[way] = ack;
 	}
 
@@ -193,10 +193,17 @@ void destroyCI(void** graphData, MPTCPConnInfo *mci){
 void initWinFlight(void** graphData, MPTCPConnInfo *mci){
 	winFlightData* data = (winFlightData*) exitMalloc(sizeof(winFlightData));
 	*graphData = data;
+
 	data->graph[S2C] = openGraphFile("flight",mci->mc->id,S2C);
 	data->graph[C2S] = openGraphFile("flight",mci->mc->id,C2S);
 	writeHeader(data->graph[S2C],wayString[S2C],"Window and MPTCP flight size",TIMEVAL,DOUBLE,LABELTIME,"size");
 	writeHeader(data->graph[C2S],wayString[C2S],"Window and MPTCP flight size",TIMEVAL,DOUBLE,LABELTIME,"size");
+
+	data->graphRE[S2C] = openGraphFile("rightEdge",mci->mc->id,S2C);
+	data->graphRE[C2S] = openGraphFile("rightEdge",mci->mc->id,C2S);
+	writeHeader(data->graphRE[S2C],wayString[S2C],"Right edge Evolution",TIMEVAL,DOUBLE,LABELTIME,"Right edge");
+	writeHeader(data->graphRE[C2S],wayString[C2S],"Right edge Evolution",TIMEVAL,DOUBLE,LABELTIME,"Right edge");
+
 	data->rightEdge[S2C] = 0;
 	data->rightEdge[C2S] = 0;
 }
@@ -234,8 +241,10 @@ void winFlightAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack,  void
 	unsigned int flightSum=0;
 	//if(data->rightEdge[way] == 0 || data->rightEdge[way] < ack->right_edge){
 	//TODO handle wrap around
-	if(data->rightEdge[way] == 0 || beforeUI(data->rightEdge[way], ack->right_edge)){
+	if(data->rightEdge[way] == 0 || beforeOrEUI(data->rightEdge[way], ack->right_edge)){
 		data->rightEdge[way] = ack->right_edge;
+		diamondTime(data->graphRE[TOGGLE(way)],ack->ts,data->rightEdge[way] ,2);
+		diamondTime(data->graphRE[TOGGLE(way)],ack->ts,ACK_MAP(mi->lastack[way]) ,1);
 	}
 	if(mi->lastack[way] != NULL){
 		diamondTime(data->graph[TOGGLE(way)],ack->ts,data->rightEdge[way] - ACK_MAP(mi->lastack[way]),1);
@@ -247,7 +256,6 @@ void winFlightAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack,  void
 	}
 	apply(msf->mc_parent->mptcp_sfs,sumFlight, &way, &flightSum);
 	diamondTime(data->graph[way],ack->ts,flightSum ,3);
-
 }
 void destroyWinFlight(void** graphData, MPTCPConnInfo *mci){
 	winFlightData *data = ((winFlightData*) *graphData);
