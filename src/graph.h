@@ -30,6 +30,8 @@
 #define UNACTIVE_MODULE	0
 #define GP_INTERV		50
 
+#define WINDOW_CLOSE_TO_FS	10000
+
 typedef struct graphModule graphModule;
 typedef struct tcpGraphModule tcpGraphModule;
 
@@ -37,6 +39,7 @@ typedef struct seqData seqData;
 typedef struct bwData bwData;
 typedef struct winFlightData winFlightData;
 typedef struct tcpWinFlightData tcpWinFlightData;
+typedef struct wFSData wFSData;
 
 void initSeq(void** graphData, MPTCPConnInfo *mci);
 void seqGrahSeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq,  void* graphData, MPTCPConnInfo *mi, int way);
@@ -62,6 +65,11 @@ void bWSeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq,  void* graph
 void bWAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack,  void* graphData, MPTCPConnInfo *mi, int way);
 void destroyBW(void** graphData, MPTCPConnInfo *mci);
 
+void initWFS(void** graphData, MPTCPConnInfo *mci);
+void wFSSeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq,  void* graphData, MPTCPConnInfo *mi, int way);
+void wFSAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack,  void* graphData, MPTCPConnInfo *mi, int way);
+void destroyWFS(void** graphData, MPTCPConnInfo *mci);
+
 struct bwData{
 	FILE *graph[WAYS];
 	mptcp_ack *mpa[WAYS];
@@ -73,12 +81,22 @@ struct bwData{
 struct seqData{
 	FILE *graph[WAYS];
 	OrderedList *seq[WAYS];
+	unsigned int reinject[WAYS];
+};
+
+struct wFSData{
+	FILE *f;
+	unsigned int *n[WAYS];
+	unsigned int *nWighted[WAYS];
 };
 
 struct winFlightData{
 	FILE *graph[WAYS];
 	FILE *graphRE[WAYS];
 	unsigned int rightEdge[WAYS];
+	unsigned int *mpFlightSize[WAYS];
+	unsigned int *mpWindow[WAYS];
+	unsigned int *tcpSumFlightSize[WAYS];
 };
 
 struct tcpWinFlightData{

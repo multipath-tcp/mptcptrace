@@ -145,7 +145,26 @@ void add_MPTCP_conn_syn(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp){
 	}
 }
 
-void add_MPTCP_conn_thirdAck(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp, List *lostSynCapable){
+void initSequenceNumber(mptcp_conn *mc, struct timeval ts){
+	mptcp_map *initSeq[WAYS];
+	initSeq[C2S] = exitMalloc(sizeof(mptcp_map));
+	initSeq[S2C] = exitMalloc(sizeof(mptcp_map));
+	u_char sha_dig2[20];
+	SHA1(mc->client_key,KEY_SIZE,sha_dig2);
+	memcpy(initSeq[C2S]->start,&sha_dig2[16],4);
+	//TODO pass the rest of the informations.
+	//initSeq[C2S]->len = 1;
+	initSeq[C2S]->ts =  ts;
+	initSeq[C2S]->msf = mc->mptcp_sfs->head->element;
+	mc->mci->firstSeq[C2S] = initSeq[C2S];
+	SHA1(mc->server_key,KEY_SIZE,sha_dig2);
+	memcpy(initSeq[S2C]->start,&sha_dig2[16],4);
+	initSeq[S2C]->msf = mc->mptcp_sfs->head->element;
+	mc->mci->firstSeq[S2C] = initSeq[S2C];
+	initSeq[S2C]->ts =  ts;
+}
+
+void add_MPTCP_conn_thirdAck(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp, List *lostSynCapable, struct timeval ts){
 	mptcp_sf msfs,*msf;
 	int i;
 	build_msf(ip,tcp,&msfs,DONOTREVERT,0);
@@ -177,6 +196,8 @@ void add_MPTCP_conn_thirdAck(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp
 			addElementHead(mc,l);
 		}
 	}
+	initSequenceNumber(msf->mc_parent,ts);
+	//TODO build the init sequence number based on key
 }
 
 void add_MPTCP_conn_synack(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp, List *lostSynCapable){
@@ -211,7 +232,7 @@ void add_MPTCP_conn_synack(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp, 
 	}
 }
 
-void updateListCapable(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp, List *lostSynCapable){
+void updateListCapable(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp, List *lostSynCapable, struct timeval ts){
 	if(SYN_SET(tcp)){
 		if(ACK_SET(tcp)){
 			//TODO
@@ -224,7 +245,7 @@ void updateListCapable(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp, List
 	else{
 		if(ACK_SET(tcp)){
 			fprintf(stderr, "3 in 3HWS\n");
-			add_MPTCP_conn_thirdAck(l,ip,tcp,lostSynCapable);
+			add_MPTCP_conn_thirdAck(l,ip,tcp,lostSynCapable,ts);
 		}
 		else{
 			printf("MMMMmmmmm \n");

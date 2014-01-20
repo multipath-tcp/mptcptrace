@@ -38,7 +38,8 @@
 #define GRAPH_SEQUENCE		1
 #define WIN_FLIGHT			2
 #define GRAPH_GOODPUT		3
-#define MAX_GRAPH			4
+#define STAT_WFS			4
+#define MAX_GRAPH			5
 
 #define TCP_WIN_FLIGHT		0
 #define TCP_MAX_GRAPH		1
@@ -58,12 +59,13 @@ typedef struct MPTCPConnInfo MPTCPConnInfo;
 
 typedef struct toFindRes toFindRes;
 
+extern char *filename;
 
 struct MPTCPConnInfo{
 	mptcp_conn *mc;
 	OrderedList *unacked[WAYS];
 	mptcp_ack *lastack[WAYS];
-
+	mptcp_map *firstSeq[WAYS];
 	//win etc.
 };
 

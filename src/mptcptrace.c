@@ -172,7 +172,7 @@ int mainLoop(){
 				tcp_segment=(struct sniff_tcp*) (packet + offset + IP_HL((struct sniff_ip *) (packet + offset)) * 4);
 				struct timeval ts;
 				if(isMPTCP_capable(tcp_segment))
-					updateListCapable(l,ip_packet,tcp_segment,lostSynCapable);
+					updateListCapable(l,ip_packet,tcp_segment,lostSynCapable, header.ts);
 
 				if(isMPTCP_join(tcp_segment))
 					updateListJoin(l,ip_packet,tcp_segment);
