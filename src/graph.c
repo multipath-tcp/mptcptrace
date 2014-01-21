@@ -380,6 +380,7 @@ void bWAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack,  void* graph
 	else{
 		//if(ACK_MAP(ack) <= ACK_MAP(data->mpa[way]) )
 		if(beforeOrEUI(ACK_MAP(ack) , ACK_MAP(data->mpa[way]) ))
+		//if(beforeUI(ACK_MAP(ack) , ACK_MAP(data->mpa[way]) ))
 				return;
 		if(data->bucket[way] == gpInterv){
 			data->movingAvgFull[way]=1;
