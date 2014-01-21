@@ -43,7 +43,7 @@ graphModule modules[]={
 		bWAck,
 		destroyBW},
 		{
-		ACTIVE_MODULE,
+		UNACTIVE_MODULE,
 		"window and fs are close enough ?",
 		initWFS,
 		wFSSeq,
@@ -355,6 +355,12 @@ void initBW(void** graphData, MPTCPConnInfo *mci){
 	data->mpa[C2S] = NULL;
 	data->bucket[S2C] = 0;
 	data->bucket[C2S] = 0;
+	data->lastNacks[C2S] = exitMalloc(sizeof(mptcp_ack*) * gpInterv);
+	data->lastNacks[S2C] = exitMalloc(sizeof(mptcp_ack*) * gpInterv);
+	data->movingAvg[C2S] = 0;
+	data->movingAvg[S2C] = 0;
+	data->movingAvgFull[C2S] = 0;
+	data->movingAvgFull[S2C] = 0;
 }
 
 void bWSeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq,  void* graphData, MPTCPConnInfo *mi, int way){
@@ -366,6 +372,7 @@ void bWAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack,  void* graph
 	bwData *data = ((bwData*) graphData);
 	struct timeval tmp = ack->ts;
 	struct timeval tmp2 = ack->ts;
+	struct timeval tmp3 = ack->ts;
 	if(data->mpa[way]==NULL){
 		data->mpa[way]=ack;
 		data->fmpa[way]=ack;
@@ -375,6 +382,7 @@ void bWAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack,  void* graph
 		if(beforeOrEUI(ACK_MAP(ack) , ACK_MAP(data->mpa[way]) ))
 				return;
 		if(data->bucket[way] == gpInterv){
+			data->movingAvgFull[way]=1;
 			//TODO gestion des ack plus anciens !
 			tv_sub(&tmp,data->mpa[way]->ts);
 			diamondTimeDouble(data->graph[TOGGLE(way)],ack->ts,(ACK_MAP(ack) - ACK_MAP(data->mpa[way]))/(tmp.tv_sec+tmp.tv_usec/1000000.0) / 1000000.0,1);
@@ -386,6 +394,14 @@ void bWAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack,  void* graph
 			data->bucket[way]++;
 		tv_sub(&tmp2,data->fmpa[way]->ts);
 		diamondTimeDouble(data->graph[TOGGLE(way)],ack->ts,(ACK_MAP(ack) - ACK_MAP(data->fmpa[way]))/(tmp2.tv_sec+tmp2.tv_usec/1000000.0) / 1000000.0 ,2);
+
+		data->lastNacks[way][data->movingAvg[way]]=ack;
+		data->movingAvg[way] = (data->movingAvg[way] + 1) % gpInterv;
+		//moving avg
+		if(data->movingAvgFull[way]){
+			tv_sub(&tmp3,data->lastNacks[way][data->movingAvg[way]]->ts);
+			diamondTimeDouble(data->graph[TOGGLE(way)],ack->ts,(ACK_MAP(ack) - ACK_MAP(data->lastNacks[way][data->movingAvg[way]]))/(tmp3.tv_sec+tmp3.tv_usec/1000000.0) / 1000000.0 ,5);
+		}
 	}
 
 
@@ -413,8 +429,7 @@ void initWFS(void** graphData, MPTCPConnInfo *mci){
 void wFSSeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq,  void* graphData, MPTCPConnInfo *mi, int way){
 	winFlightData *winData = ((winFlightData*) msf->mc_parent->graphdata[WIN_FLIGHT]);
 	wFSData *wfsData = ((wFSData*) graphData);
-	if(*(winData->mpWindow[way]) - *(winData->mpFlightSize[way]) < WINDOW_CLOSE_TO_FS){
-		//fprintf(stderr,"close enough...%u\n",*(winData->mpWindow[way]) - *(winData->mpFlightSize[way]) );
+	if(modules[WIN_FLIGHT].activated && *(winData->mpWindow[way]) - *(winData->mpFlightSize[way]) < WINDOW_CLOSE_TO_FS){
 		(*(wfsData->n[way]))++;
 	}
 }
@@ -422,7 +437,6 @@ void wFSAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack,  void* grap
 	winFlightData *winData = ((winFlightData*) msf->mc_parent->graphdata[WIN_FLIGHT]);
 	wFSData *wfsData = ((wFSData*) graphData);
 	if(*(winData->mpWindow[TOGGLE(way)]) - *(winData->mpFlightSize[TOGGLE(way)]) < WINDOW_CLOSE_TO_FS){
-		//fprintf(stderr,"close enough...%u\n",*(winData->mpWindow[TOGGLE(way)]) - *(winData->mpFlightSize[TOGGLE(way)]) );
 		(*(wfsData->n[TOGGLE(way)]))++;
 	}
 }
@@ -447,12 +461,5 @@ void destroyWFS(void** graphData, MPTCPConnInfo *mci){
 	writeStats(wfsData->f,"seqAcked",mci->mc->id,ACK_MAP(mci->lastack[TOGGLE(C2S)]) - SEQ_MAP_START(mci->firstSeq[C2S]),ACK_MAP(mci->lastack[TOGGLE(S2C)]) - SEQ_MAP_START(mci->firstSeq[S2C]));
 	if(modules[GRAPH_SEQUENCE].activated == ACTIVE_MODULE)
 		writeStats(wfsData->f,"reinjected",mci->mc->id,sData->reinject[C2S],sData->reinject[S2C]);
-	/*if(mci->firstSeq[S2C] && mci->lastack[TOGGLE(S2C)] && *(wfsData->n[S2C]) > 1000){
-		fprintf(stderr,"(s2c) yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyes\n");
-	}
-	if(mci->firstSeq[TOGGLE(S2C)] && mci->lastack[S2C] && *(wfsData->n[TOGGLE(S2C)]) > 1000){
-		fprintf(stderr,"(s2c) yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyes\n");
-	}*/
-	//writeStats()
 	fclose(wfsData->f);
 }

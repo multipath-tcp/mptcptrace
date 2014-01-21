@@ -75,6 +75,9 @@ struct bwData{
 	mptcp_ack *mpa[WAYS];
 	int bucket[WAYS];
 	mptcp_ack *fmpa[WAYS];
+	mptcp_ack **lastNacks[WAYS];
+	int movingAvg[WAYS];
+	int movingAvgFull[WAYS];
 	//we may need other data to calculate the bandwidth
 };
 
