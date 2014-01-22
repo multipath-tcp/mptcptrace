@@ -9,9 +9,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
+#include <string.h>
 #include "mptcptrace.h"
 #include "allocations.h"
 #include "MPTCPList.h"
+
 
 
 graphModule modules[]={
@@ -20,14 +22,16 @@ graphModule modules[]={
 		initCI,
 		CISeq,
 		CIAck,
-		destroyCI},
+		destroyCI,
+		NULL},
 		{
 		UNACTIVE_MODULE,
 		"Sequence Graph",
 		initSeq,
 		seqGrahSeq,
 		seqGrahAck,
-		destroySeq},
+		destroySeq,
+		NULL},
 		{
 		UNACTIVE_MODULE,
 		"Window and flight size graph",
@@ -35,13 +39,15 @@ graphModule modules[]={
 		winFlightSeq,
 		winFlightAck,
 		destroyWinFlight,
+		NULL
 		},
 		{UNACTIVE_MODULE,
 		"MPTCP goodput",
 		initBW,
 		bWSeq,
 		bWAck,
-		destroyBW},
+		destroyBW,
+		NULL},
 		{
 		UNACTIVE_MODULE,
 		"window and fs are close enough ?",
@@ -49,6 +55,39 @@ graphModule modules[]={
 		wFSSeq,
 		wFSAck,
 		destroyWFS,
+		NULL
+		}
+};
+/**
+ * struct Writer{
+	FILE * (*openFile) (char *name, int id, int way);
+	void (*writeHeader)(FILE *f,char *way, char* title, char *xtype, char *ytype, char * xlabel, char *ylabel);
+	void (*writeTimeDot)(FILE *f, struct timeval tsx, unsigned int y, int color);
+	void (*writeTimeDotDouble)(FILE *f, struct timeval tsx, double y, int color);
+	void (*writeTimeVerticalLine) (FILE* f, struct timeval tsx, unsigned int y, unsigned int h, int color);
+	void (*writeTimeVerticalLineDouble) (FILE* f, struct timeval tsx, unsigned int y, double h, int color);
+	void (*writeFooter)(FILE *f,char *way, char* title, char *xtype, char *ytype, char * xlabel, char *ylabel);
+};
+ *
+ */
+Writer Boris[]={
+		{xpl_openGraphFile,
+		xpl_writeHeader,
+		xpl_diamondTime,
+		xpl_diamondTimeDouble,
+		xpl_verticalLineTime,
+		NULL,
+		xpl_textTime,
+		xpl_writeFooter
+		},
+		{gg_openGraphFile,
+		gg_writeHeader,
+		gg_diamondTime,
+		gg_diamondTimeDouble,
+		gg_verticalLineTime,
+		NULL,
+		gg_textTime,
+		gg_writeFooter
 		}
 };
 
@@ -66,30 +105,32 @@ char* wayString[]={"s2c","c2s"};
  * helper
  */
 //diamond etc, and all helper
-void verticalLine(FILE* f, unsigned int x, unsigned int y, unsigned long h, int color){
+void xpl_verticalLine(FILE* f, unsigned int x, unsigned int y, unsigned long h, int color){
 	//TODO
 }
 
-void verticalLineTime(FILE* f, struct timeval tsx, unsigned int y, unsigned int h, int color){
+void xpl_verticalLineTime(FILE* f, struct timeval tsx, unsigned int y, unsigned int h, int color){
 	fprintf(f,"%i\n",color);
 	fprintf(f,"line %li.%06li %u %li.%06li %u \n",tsx.tv_sec, tsx.tv_usec,y,tsx.tv_sec, tsx.tv_usec,y+h);
 }
 
-void diamondTime(FILE *f, struct timeval tsx, unsigned int y, int color){
+void xpl_diamondTime(FILE *f, struct timeval tsx, unsigned int y, int color){
 	fprintf(f,"%i\n",color);
 	fprintf(f,"diamond %li.%06li %u\n",tsx.tv_sec, tsx.tv_usec,y);
 }
 
-void diamondTimeDouble(FILE *f, struct timeval tsx, double y, int color){
+void xpl_diamondTimeDouble(FILE *f, struct timeval tsx, double y, int color){
 	fprintf(f,"%i\n",color);
 	fprintf(f,"diamond %li.%06li %f\n",tsx.tv_sec, tsx.tv_usec,y);
+	//TODO google api
+	//fprintf(f,"[ new Date(%f), %f ],\n",tsx.tv_sec * 1000.0 + tsx.tv_usec / 1000.0 ,y);
 }
 
-void textTime(FILE *f, struct timeval tsx, unsigned int y, char* text, int color){
+void xpl_textTime(FILE *f, struct timeval tsx, unsigned int y, char* text, int color){
 	fprintf(f,"%i\n",color);
 	fprintf(f,"atext %li.%06li %u\n R \n",tsx.tv_sec, tsx.tv_usec,y);
 }
-void writeHeader(FILE *f,char *way, char* title, char *xtype, char *ytype, char * xlabel, char *ylabel){
+void xpl_writeHeader(FILE *f,char *way, char* title, char *xtype, char *ytype, char * xlabel, char *ylabel){
 	fprintf(f,\
 			"%s %s\n" \
 			"title\n" \
@@ -100,13 +141,80 @@ void writeHeader(FILE *f,char *way, char* title, char *xtype, char *ytype, char 
 			"%s\n",xtype, ytype, way, title,xlabel,ylabel);
 }
 
-FILE* openGraphFile(char *name, int id, int way){
+void xpl_writeFooter(FILE *f,char *way, char* title, char *xtype, char *ytype, char * xlabel, char *ylabel){
+}
+
+
+FILE* xpl_openGraphFile(char *name, int id, int way){
 	char str[42];
 	sprintf(str,"%s_%s_%d.xpl",wayString[way],name,id);
 	return fopen(str,"w");
 	//TODO header ?
 }
 
+void gg_verticalLine(FILE* f, unsigned int x, unsigned int y, unsigned long h, int color){
+	//TODO
+}
+
+void gg_verticalLineTime(FILE* f, struct timeval tsx, unsigned int y, unsigned int h, int color){
+	fprintf(f,"%i\n",color);
+	fprintf(f,"line %li.%06li %u %li.%06li %u \n",tsx.tv_sec, tsx.tv_usec,y,tsx.tv_sec, tsx.tv_usec,y+h);
+}
+
+void gg_diamondTime(FILE *f, struct timeval tsx, unsigned int y, int color){
+	//fprintf(f,"%i\n",color);
+	//fprintf(f,"diamond %li.%06li %u\n",tsx.tv_sec, tsx.tv_usec,y);
+	fprintf(f,"[ new Date(%f), %u ],\n",tsx.tv_sec * 1000.0 + tsx.tv_usec / 1000.0 ,y);
+}
+
+void gg_diamondTimeDouble(FILE *f, struct timeval tsx, double y, int color){
+	fprintf(f,"[ new Date(%f), %f ],\n",tsx.tv_sec * 1000.0 + tsx.tv_usec / 1000.0 ,y);
+}
+
+void gg_textTime(FILE *f, struct timeval tsx, unsigned int y, char* text, int color){
+	fprintf(f,"%i\n",color);
+	fprintf(f,"atext %li.%06li %u\n R \n",tsx.tv_sec, tsx.tv_usec,y);
+}
+void gg_writeHeader(FILE *f,char *way, char* title, char *xtype, char *ytype, char * xlabel, char *ylabel){
+	fprintf(f,\
+			"<html>\n" \
+			"  <head>\n" \
+			"    <script type=\"text/javascript\" src=\"https://www.google.com/jsapi\"></script>\n" \
+			"    <script type=\"text/javascript\">\n" \
+			"      google.load(\"visualization\", \"1\", {packages:[\"corechart\"]});\n" \
+			"      google.setOnLoadCallback(drawChart);\n" \
+			"      function drawChart() {\n" \
+			"        var data = google.visualization.arrayToDataTable([\n" \
+			"        ['%s', '%s'],\n",xlabel,ylabel);
+}
+
+void gg_writeFooter(FILE *f,char *way, char* title, char *xtype, char *ytype, char * xlabel, char *ylabel){
+	fprintf(f,
+	"         ]);\n"
+	"        var options = { \n" \
+	"          title: '%s - %s',\n" \
+/*	"          hAxis: {title: 'Age', minValue: 0, maxValue: 15},\n" \
+	"          vAxis: {title: 'Weight', minValue: 0, maxValue: 15},\n" \ */
+	"          legend: 'none'\n" \
+	"        };\n" \
+	"\n" \
+	"        var chart = new google.visualization.ScatterChart(document.getElementById('chart_div'));\n" \
+	"        chart.draw(data, options);\n" \
+	"      }\n" \
+	"    </script>\n" \
+	"  </head>\n" \
+	"  <body>\n" \
+	"    <div id=\"chart_div\" style=\"width: 900px; height: 500px;\"></div>\n" \
+	"  </body>\n" \
+	"</html>\n",way,title );
+}
+
+
+FILE* gg_openGraphFile(char *name, int id, int way){
+	char str[42];
+	sprintf(str,"%s_%s_%d.htm",wayString[way],name,id);
+	return fopen(str,"w");
+}
 /**
  * sequence graph
  */
@@ -114,10 +222,10 @@ FILE* openGraphFile(char *name, int id, int way){
 void initSeq(void** graphData, MPTCPConnInfo *mci){
 	seqData* data = (seqData*) exitMalloc(sizeof(seqData));
 	*graphData = data;
-	data->graph[S2C] = openGraphFile("seq",mci->mc->id,S2C);
-	data->graph[C2S] = openGraphFile("seq",mci->mc->id,C2S);
-	writeHeader(data->graph[S2C],wayString[S2C],"Time sequence",TIMEVAL,DOUBLE,LABELTIME,LABELSEQ);
-	writeHeader(data->graph[C2S],wayString[C2S],"Time sequence",TIMEVAL,DOUBLE,LABELTIME,LABELSEQ);
+	data->graph[S2C] = Boris[Vian].openFile("seq",mci->mc->id,S2C);
+	data->graph[C2S] = Boris[Vian].openFile("seq",mci->mc->id,C2S);
+	Boris[Vian].writeHeader(data->graph[S2C],wayString[S2C],"Time sequence",TIMEVAL,DOUBLE,LABELTIME,LABELSEQ);
+	Boris[Vian].writeHeader(data->graph[C2S],wayString[C2S],"Time sequence",TIMEVAL,DOUBLE,LABELTIME,LABELSEQ);
 	data->seq[S2C] = newOrderedList(NULL,compareMap);
 	data->seq[C2S] = newOrderedList(NULL,compareMap);
 	data->reinject[S2C] = 0;
@@ -142,15 +250,15 @@ void seqGrahSeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq, void* g
 	Node *n = addElementOrderedReverse(seq,data->seq[way]);
 	int reinject = isReinjected(n,data->seq[way]->l);
 	if( reinject >= 0){
-		textTime(data->graph[way],seq->ts,SEQ_MAP_END(seq),"R",reinject);
+		Boris[Vian].writeTextTime(data->graph[way],seq->ts,SEQ_MAP_END(seq),"R",reinject);
 		data->reinject[way] += SEQ_MAP_LEN(seq);
 	}
-	verticalLineTime(data->graph[way],seq->ts,SEQ_MAP_START(seq),SEQ_MAP_LEN(seq),msf->id);
+	Boris[Vian].writeTimeVerticalLine(data->graph[way],seq->ts,SEQ_MAP_START(seq),SEQ_MAP_LEN(seq),msf->id);
 }
 
 void seqGrahAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack, void* graphData, MPTCPConnInfo *mi, int way){
 	seqData *data = ((seqData*) graphData);
-	diamondTime(data->graph[TOGGLE(way)],ack->ts,ACK_MAP(ack),msf->id);
+	Boris[Vian].writeTimeDot(data->graph[TOGGLE(way)],ack->ts,ACK_MAP(ack),msf->id);
 }
 
 void destroySeq(void** graphData, MPTCPConnInfo *mci){
@@ -210,15 +318,15 @@ void initWinFlight(void** graphData, MPTCPConnInfo *mci){
 	winFlightData* data = (winFlightData*) exitMalloc(sizeof(winFlightData));
 	*graphData = data;
 
-	data->graph[S2C] = openGraphFile("flight",mci->mc->id,S2C);
-	data->graph[C2S] = openGraphFile("flight",mci->mc->id,C2S);
-	writeHeader(data->graph[S2C],wayString[S2C],"Window and MPTCP flight size",TIMEVAL,DOUBLE,LABELTIME,"size");
-	writeHeader(data->graph[C2S],wayString[C2S],"Window and MPTCP flight size",TIMEVAL,DOUBLE,LABELTIME,"size");
+	data->graph[S2C] = Boris[Vian].openFile("flight",mci->mc->id,S2C);
+	data->graph[C2S] = Boris[Vian].openFile("flight",mci->mc->id,C2S);
+	Boris[Vian].writeHeader(data->graph[S2C],wayString[S2C],"Window and MPTCP flight size",TIMEVAL,DOUBLE,LABELTIME,"size");
+	Boris[Vian].writeHeader(data->graph[C2S],wayString[C2S],"Window and MPTCP flight size",TIMEVAL,DOUBLE,LABELTIME,"size");
 
-	data->graphRE[S2C] = openGraphFile("rightEdge",mci->mc->id,S2C);
-	data->graphRE[C2S] = openGraphFile("rightEdge",mci->mc->id,C2S);
-	writeHeader(data->graphRE[S2C],wayString[S2C],"Right edge Evolution",TIMEVAL,DOUBLE,LABELTIME,"Right edge");
-	writeHeader(data->graphRE[C2S],wayString[C2S],"Right edge Evolution",TIMEVAL,DOUBLE,LABELTIME,"Right edge");
+	data->graphRE[S2C] = Boris[Vian].openFile("rightEdge",mci->mc->id,S2C);
+	data->graphRE[C2S] = Boris[Vian].openFile("rightEdge",mci->mc->id,C2S);
+	Boris[Vian].writeHeader(data->graphRE[S2C],wayString[S2C],"Right edge Evolution",TIMEVAL,DOUBLE,LABELTIME,"Right edge");
+	Boris[Vian].writeHeader(data->graphRE[C2S],wayString[C2S],"Right edge Evolution",TIMEVAL,DOUBLE,LABELTIME,"Right edge");
 
 	data->rightEdge[S2C] = 0;
 	data->rightEdge[C2S] = 0;
@@ -258,10 +366,10 @@ void winFlightSeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq,  void
 		luna = (mptcp_map*) mi->unacked[way]->l->tail->element;
 		//mpflight = SEQ_MAP_END(luna) - SEQ_MAP_START(funa);
 		*(data->mpFlightSize[way]) = SEQ_MAP_END(luna) - SEQ_MAP_START(funa);
-		diamondTime(data->graph[way],seq->ts,*(data->mpFlightSize[way]),2);
+		Boris[Vian].writeTimeDot(data->graph[way],seq->ts,*(data->mpFlightSize[way]),2);
 	}
 	apply(msf->mc_parent->mptcp_sfs,sumFlight, &way, &flightSum);
-	diamondTime(data->graph[way],seq->ts,flightSum ,3);
+	Boris[Vian].writeTimeDot(data->graph[way],seq->ts,flightSum ,3);
 }
 
 
@@ -274,25 +382,29 @@ void winFlightAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack,  void
 	//TODO handle wrap around
 	if(data->rightEdge[way] == 0 || beforeOrEUI(data->rightEdge[way], ack->right_edge)){
 		data->rightEdge[way] = ack->right_edge;
-		diamondTime(data->graphRE[TOGGLE(way)],ack->ts,data->rightEdge[way] ,2);
-		diamondTime(data->graphRE[TOGGLE(way)],ack->ts,ACK_MAP(mi->lastack[way]) ,1);
+		Boris[Vian].writeTimeDot(data->graphRE[TOGGLE(way)],ack->ts,data->rightEdge[way] ,2);
+		Boris[Vian].writeTimeDot(data->graphRE[TOGGLE(way)],ack->ts,ACK_MAP(mi->lastack[way]) ,1);
 	}
 	if(mi->lastack[way] != NULL){
 		*(data->mpWindow[TOGGLE(way)]) = data->rightEdge[way] - ACK_MAP(mi->lastack[way]);
-		diamondTime(data->graph[TOGGLE(way)],ack->ts,data->rightEdge[way] - ACK_MAP(mi->lastack[way]),1);
+		Boris[Vian].writeTimeDot(data->graph[TOGGLE(way)],ack->ts,data->rightEdge[way] - ACK_MAP(mi->lastack[way]),1);
 	}
 	if(mi->unacked[TOGGLE(way)]->l->size > 0){
 		funa = (mptcp_map*) mi->unacked[TOGGLE(way)]->l->head->element;
 		luna = (mptcp_map*) mi->unacked[TOGGLE(way)]->l->tail->element;
 		*(data->mpFlightSize[TOGGLE(way)]) = SEQ_MAP_END(luna) - SEQ_MAP_START(funa);
-		diamondTime(data->graph[TOGGLE(way)],ack->ts, *(data->mpFlightSize[TOGGLE(way)]) ,2);
+		Boris[Vian].writeTimeDot(data->graph[TOGGLE(way)],ack->ts, *(data->mpFlightSize[TOGGLE(way)]) ,2);
 	}
 	apply(msf->mc_parent->mptcp_sfs,sumFlight, &way, &flightSum);
-	diamondTime(data->graph[way],ack->ts,flightSum ,3);
+	Boris[Vian].writeTimeDot(data->graph[way],ack->ts,flightSum ,3);
 
 }
 void destroyWinFlight(void** graphData, MPTCPConnInfo *mci){
 	winFlightData *data = ((winFlightData*) *graphData);
+	Boris[Vian].writeFooter(data->graph[S2C],wayString[S2C],"Window and MPTCP flight size",TIMEVAL,DOUBLE,LABELTIME,"size");
+	Boris[Vian].writeFooter(data->graph[C2S],wayString[C2S],"Window and MPTCP flight size",TIMEVAL,DOUBLE,LABELTIME,"size");
+	Boris[Vian].writeFooter(data->graphRE[S2C],wayString[S2C],"Right edge Evolution",TIMEVAL,DOUBLE,LABELTIME,"Right edge");
+	Boris[Vian].writeFooter(data->graphRE[C2S],wayString[C2S],"Right edge Evolution",TIMEVAL,DOUBLE,LABELTIME,"Right edge");
 	fclose(data->graph[S2C]);
 	fclose(data->graph[C2S]);
 }
@@ -347,10 +459,10 @@ void destroyTcpWinFlight(void** graphData, MPTCPConnInfo *mci){
 void initBW(void** graphData, MPTCPConnInfo *mci){
 	bwData* data = (bwData*) exitMalloc(sizeof(bwData));
 	*graphData = data;
-	data->graph[S2C] = openGraphFile("gput",mci->mc->id,S2C);
-	data->graph[C2S] = openGraphFile("gput",mci->mc->id,C2S);
-	writeHeader(data->graph[S2C],wayString[S2C],"MPTCP goodput",TIMEVAL,DOUBLE,LABELTIME,"Goodput");
-	writeHeader(data->graph[C2S],wayString[C2S],"MPTCP goodput",TIMEVAL,DOUBLE,LABELTIME,"Goodput");
+	data->graph[S2C] = Boris[Vian].openFile("gput",mci->mc->id,S2C);
+	data->graph[C2S] = Boris[Vian].openFile("gput",mci->mc->id,C2S);
+	Boris[Vian].writeHeader(data->graph[S2C],wayString[S2C],"MPTCP goodput",TIMEVAL,DOUBLE,LABELTIME,"Goodput");
+	Boris[Vian].writeHeader(data->graph[C2S],wayString[C2S],"MPTCP goodput",TIMEVAL,DOUBLE,LABELTIME,"Goodput");
 	data->mpa[S2C] = NULL;
 	data->mpa[C2S] = NULL;
 	data->bucket[S2C] = 0;
@@ -386,7 +498,7 @@ void bWAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack,  void* graph
 			data->movingAvgFull[way]=1;
 			//TODO gestion des ack plus anciens !
 			tv_sub(&tmp,data->mpa[way]->ts);
-			diamondTimeDouble(data->graph[TOGGLE(way)],ack->ts,(ACK_MAP(ack) - ACK_MAP(data->mpa[way]))/(tmp.tv_sec+tmp.tv_usec/1000000.0) / 1000000.0,1);
+			Boris[Vian].writeTimeDotDouble(data->graph[TOGGLE(way)],ack->ts,(ACK_MAP(ack) - ACK_MAP(data->mpa[way]))/(tmp.tv_sec+tmp.tv_usec/1000000.0) / 1000000.0,1);
 			data->bucket[way]=0;
 			data->mpa[way] = ack;
 
@@ -394,14 +506,14 @@ void bWAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack,  void* graph
 		else
 			data->bucket[way]++;
 		tv_sub(&tmp2,data->fmpa[way]->ts);
-		diamondTimeDouble(data->graph[TOGGLE(way)],ack->ts,(ACK_MAP(ack) - ACK_MAP(data->fmpa[way]))/(tmp2.tv_sec+tmp2.tv_usec/1000000.0) / 1000000.0 ,2);
+		Boris[Vian].writeTimeDotDouble(data->graph[TOGGLE(way)],ack->ts,(ACK_MAP(ack) - ACK_MAP(data->fmpa[way]))/(tmp2.tv_sec+tmp2.tv_usec/1000000.0) / 1000000.0 ,2);
 
 		data->lastNacks[way][data->movingAvg[way]]=ack;
 		data->movingAvg[way] = (data->movingAvg[way] + 1) % gpInterv;
 		//moving avg
 		if(data->movingAvgFull[way]){
 			tv_sub(&tmp3,data->lastNacks[way][data->movingAvg[way]]->ts);
-			diamondTimeDouble(data->graph[TOGGLE(way)],ack->ts,(ACK_MAP(ack) - ACK_MAP(data->lastNacks[way][data->movingAvg[way]]))/(tmp3.tv_sec+tmp3.tv_usec/1000000.0) / 1000000.0 ,5);
+			Boris[Vian].writeTimeDotDouble(data->graph[TOGGLE(way)],ack->ts,(ACK_MAP(ack) - ACK_MAP(data->lastNacks[way][data->movingAvg[way]]))/(tmp3.tv_sec+tmp3.tv_usec/1000000.0) / 1000000.0 ,5);
 		}
 	}
 
@@ -409,6 +521,8 @@ void bWAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack,  void* graph
 }
 void destroyBW(void** graphData, MPTCPConnInfo *mci){
 	bwData *data = ((bwData*) *graphData);
+	Boris[Vian].writeFooter(data->graph[S2C],wayString[S2C],"MPTCP goodput",TIMEVAL,DOUBLE,LABELTIME,"Goodput");
+	Boris[Vian].writeFooter(data->graph[C2S],wayString[C2S],"MPTCP goodput",TIMEVAL,DOUBLE,LABELTIME,"Goodput");
 	fclose(data->graph[S2C]);
 	fclose(data->graph[C2S]);
 }

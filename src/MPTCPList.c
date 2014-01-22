@@ -314,6 +314,7 @@ mptcp_conn* getConnectionFromHash(List* l,u_char* hash){
 
 void add_MPTCP_join_syn(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp){
 	mptcp_sf *msf = new_msf(ip,tcp);
+	int i;
 	u_char* wscale = next_opt_x(OPTION_TCP_HEADER(tcp),MAX_TCP_HEADER(tcp), TCP_OPT_WSCALE);
 	if(wscale)
 		msf->wscale[C2S] = *(wscale+2);
@@ -325,6 +326,8 @@ void add_MPTCP_join_syn(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp){
 		addElementHead(msf, mc->mptcp_sfs);
 		memcpy(&msf->client_nonce,mpcapa+8,NONCE_SIZE);
 		fprintf(stderr, "The key has been found and the nonce copied ! ..... \n");
+		//TODO new sf hook
+		for(i=0;i<MAX_GRAPH;i++) if(modules[i].activated && modules[i].handleNewSF) modules[i].handleNewSF(msf,mc->graphdata[i],mc->mci);
 	}
 	else{
 		free(msf);

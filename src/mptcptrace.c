@@ -28,6 +28,7 @@
 char *filename = NULL;
 int offset_opt = -1;
 int gpInterv = 0;
+int Vian = 0;
 
 void printHelp(){
 	printf("mptcptrace help :\n");
@@ -39,7 +40,7 @@ void printHelp(){
 
 int parseArgs(int argc, char *argv[]){
 	int c;
-	while ((c = getopt (argc, argv, "haG:sr:f:o:F")) != -1)
+	while ((c = getopt (argc, argv, "haG:sr:f:o:Fw:")) != -1)
 		switch (c){
 		case 's':
 			modules[GRAPH_SEQUENCE].activated = ACTIVE_MODULE;
@@ -63,6 +64,9 @@ int parseArgs(int argc, char *argv[]){
 		case 'G':
 			gpInterv = atoi(optarg);
 			modules[GRAPH_GOODPUT].activated = ACTIVE_MODULE;
+		   break;
+		case 'w':
+			Vian = atoi(optarg);
 		   break;
 		case 'F':
 			modules[WIN_FLIGHT].activated = ACTIVE_MODULE;

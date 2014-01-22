@@ -30,16 +30,42 @@
 #define UNACTIVE_MODULE	0
 #define GP_INTERV		50
 
+#define	XPLOT_WRITER	0
+#define GOOGLE_WRITER	1
+
 #define WINDOW_CLOSE_TO_FS	10000
 
 typedef struct graphModule graphModule;
 typedef struct tcpGraphModule tcpGraphModule;
+typedef struct Writer Writer;
 
 typedef struct seqData seqData;
 typedef struct bwData bwData;
 typedef struct winFlightData winFlightData;
 typedef struct tcpWinFlightData tcpWinFlightData;
 typedef struct wFSData wFSData;
+
+/******
+ * xplot writer
+ */
+
+void xpl_verticalLine(FILE* f, unsigned int x, unsigned int y, unsigned long h, int color);
+void xpl_verticalLineTime(FILE* f, struct timeval tsx, unsigned int y, unsigned int h, int color);
+void xpl_diamondTime(FILE *f, struct timeval tsx, unsigned int y, int color);
+void xpl_diamondTimeDouble(FILE *f, struct timeval tsx, double y, int color);
+void xpl_textTime(FILE *f, struct timeval tsx, unsigned int y, char* text, int color);
+void xpl_writeHeader(FILE *f,char *way, char* title, char *xtype, char *ytype, char * xlabel, char *ylabel);
+void xpl_writeFooter(FILE *f,char *way, char* title, char *xtype, char *ytype, char * xlabel, char *ylabel);
+FILE* xpl_openGraphFile(char *name, int id, int way);
+
+void gg_verticalLine(FILE* f, unsigned int x, unsigned int y, unsigned long h, int color);
+void gg_verticalLineTime(FILE* f, struct timeval tsx, unsigned int y, unsigned int h, int color);
+void gg_diamondTime(FILE *f, struct timeval tsx, unsigned int y, int color);
+void gg_diamondTimeDouble(FILE *f, struct timeval tsx, double y, int color);
+void gg_textTime(FILE *f, struct timeval tsx, unsigned int y, char* text, int color);
+void gg_writeHeader(FILE *f,char *way, char* title, char *xtype, char *ytype, char * xlabel, char *ylabel);
+void gg_writeFooter(FILE *f,char *way, char* title, char *xtype, char *ytype, char * xlabel, char *ylabel);
+FILE* gg_openGraphFile(char *name, int id, int way);
 
 void initSeq(void** graphData, MPTCPConnInfo *mci);
 void seqGrahSeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq,  void* graphData, MPTCPConnInfo *mi, int way);
@@ -114,6 +140,7 @@ struct graphModule{
 	void (*handleMPTCPSeq)(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq, void* graphData, MPTCPConnInfo *mi, int way);
 	void (*handleMPTCPAck)(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack, void* graphData, MPTCPConnInfo *mi, int way);
 	void (*destroyModule)(void** graphData, MPTCPConnInfo *mci);
+	void (*handleNewSF)(mptcp_sf *msf, void* graphData, MPTCPConnInfo *mi);
 };
 
 struct tcpGraphModule{
@@ -125,7 +152,20 @@ struct tcpGraphModule{
 	void (*destroyModule)(void** graphData, MPTCPConnInfo *mci);
 };
 
+struct Writer{
+	FILE * (*openFile) (char *name, int id, int way);
+	void (*writeHeader)(FILE *f,char *way, char* title, char *xtype, char *ytype, char * xlabel, char *ylabel);
+	void (*writeTimeDot)(FILE *f, struct timeval tsx, unsigned int y, int color);
+	void (*writeTimeDotDouble)(FILE *f, struct timeval tsx, double y, int color);
+	void (*writeTimeVerticalLine) (FILE* f, struct timeval tsx, unsigned int y, unsigned int h, int color);
+	void (*writeTimeVerticalLineDouble) (FILE* f, struct timeval tsx, unsigned int y, double h, int color);
+	void (*writeTextTime) (FILE *f, struct timeval tsx, unsigned int y, char* text, int color);
+	void (*writeFooter)(FILE *f,char *way, char* title, char *xtype, char *ytype, char * xlabel, char *ylabel);
+};
+
 extern graphModule modules[];
+extern Writer Boris[];
+extern int Vian;
 extern tcpGraphModule tcpModules[];
 extern int gpInterv;
 
