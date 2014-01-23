@@ -31,7 +31,7 @@ graphModule modules[]={
 		seqGrahSeq,
 		seqGrahAck,
 		destroySeq,
-		NULL},
+		handleNewSFSeq},
 		{
 		UNACTIVE_MODULE,
 		"Window and flight size graph",
@@ -56,6 +56,15 @@ graphModule modules[]={
 		wFSAck,
 		destroyWFS,
 		NULL
+		},
+		{
+		UNACTIVE_MODULE,
+		"MPTCP Ack size",
+		initAS,
+		asGrahSeq,
+		asGrahAck,
+		destroyAS,
+		NULL
 		}
 };
 /**
@@ -78,7 +87,8 @@ Writer Boris[]={
 		xpl_verticalLineTime,
 		NULL,
 		xpl_textTime,
-		xpl_writeFooter
+		xpl_writeFooter,
+		xpl_writeSeries,
 		},
 		{gg_openGraphFile,
 		gg_writeHeader,
@@ -87,7 +97,8 @@ Writer Boris[]={
 		gg_verticalLineTime,
 		NULL,
 		gg_textTime,
-		gg_writeFooter
+		gg_writeFooter,
+		gg_writeSeries
 		}
 };
 
@@ -141,6 +152,9 @@ void xpl_writeHeader(FILE *f,char *way, char* title, char *xtype, char *ytype, c
 			"%s\n",xtype, ytype, way, title,xlabel,ylabel);
 }
 
+void xpl_writeSeries(FILE *f, char *type, char *name){
+}
+
 void xpl_writeFooter(FILE *f,char *way, char* title, char *xtype, char *ytype, char * xlabel, char *ylabel){
 }
 
@@ -157,23 +171,32 @@ void gg_verticalLine(FILE* f, unsigned int x, unsigned int y, unsigned long h, i
 }
 
 void gg_verticalLineTime(FILE* f, struct timeval tsx, unsigned int y, unsigned int h, int color){
-	fprintf(f,"%i\n",color);
-	fprintf(f,"line %li.%06li %u %li.%06li %u \n",tsx.tv_sec, tsx.tv_usec,y,tsx.tv_sec, tsx.tv_usec,y+h);
+	//fprintf(f,"%i\n",color);
+	//fprintf(f,"line %li.%06li %u %li.%06li %u \n",tsx.tv_sec, tsx.tv_usec,y,tsx.tv_sec, tsx.tv_usec,y+h);
+	fprintf(f,"row = data.addRow();\n");
+	fprintf(f,"data.setCell(row,0, new Date(%f));\n",tsx.tv_sec * 1000.0 + tsx.tv_usec / 1000.0);
+	fprintf(f,"data.setCell(row,%d, %u);\n",color,y);
 }
 
 void gg_diamondTime(FILE *f, struct timeval tsx, unsigned int y, int color){
 	//fprintf(f,"%i\n",color);
 	//fprintf(f,"diamond %li.%06li %u\n",tsx.tv_sec, tsx.tv_usec,y);
-	fprintf(f,"[ new Date(%f), %u ],\n",tsx.tv_sec * 1000.0 + tsx.tv_usec / 1000.0 ,y);
+	//fprintf(f,"[ new Date(%f), %u ],\n",tsx.tv_sec * 1000.0 + tsx.tv_usec / 1000.0 ,y);
+	fprintf(f,"row = data.addRow();\n");
+	fprintf(f,"data.setCell(row,0, new Date(%f));\n",tsx.tv_sec * 1000.0 + tsx.tv_usec / 1000.0);
+	fprintf(f,"data.setCell(row,%d, %u);\n",color,y);
 }
 
 void gg_diamondTimeDouble(FILE *f, struct timeval tsx, double y, int color){
-	fprintf(f,"[ new Date(%f), %f ],\n",tsx.tv_sec * 1000.0 + tsx.tv_usec / 1000.0 ,y);
+	fprintf(f,"row = data.addRow();\n");
+	fprintf(f,"data.setCell(row,0, new Date(%f));\n",tsx.tv_sec * 1000.0 + tsx.tv_usec / 1000.0);
+	fprintf(f,"data.setCell(row,%d, %f);\n",color,y);
+	//fprintf(f,"[ new Date(%f), %f ],\n",tsx.tv_sec * 1000.0 + tsx.tv_usec / 1000.0 ,y);
 }
 
 void gg_textTime(FILE *f, struct timeval tsx, unsigned int y, char* text, int color){
-	fprintf(f,"%i\n",color);
-	fprintf(f,"atext %li.%06li %u\n R \n",tsx.tv_sec, tsx.tv_usec,y);
+	//fprintf(f,"%i\n",color);
+	//fprintf(f,"atext %li.%06li %u\n R \n",tsx.tv_sec, tsx.tv_usec,y);
 }
 void gg_writeHeader(FILE *f,char *way, char* title, char *xtype, char *ytype, char * xlabel, char *ylabel){
 	fprintf(f,\
@@ -184,27 +207,61 @@ void gg_writeHeader(FILE *f,char *way, char* title, char *xtype, char *ytype, ch
 			"      google.load(\"visualization\", \"1\", {packages:[\"corechart\"]});\n" \
 			"      google.setOnLoadCallback(drawChart);\n" \
 			"      function drawChart() {\n" \
-			"        var data = google.visualization.arrayToDataTable([\n" \
-			"        ['%s', '%s'],\n",xlabel,ylabel);
+			"        var inputDiv = document.getElementById('select_div');\n" \
+			"        var row;\n" \
+			"        var data = new google.visualization.DataTable();\n");
+	gg_writeSeries(f, "datetime", xlabel);
+}
+
+void gg_writeSeries(FILE *f, char *type, char *name){
+	fprintf(f,"data.addColumn('%s','%s','certainty');\n",type, name);
+	fprintf(f,"if(document.getElementById('%s') == null){\n" \
+			"var checkbox = document.createElement('input');\n" \
+			"checkbox.type =  \"checkbox\";\n" \
+			"checkbox.name =  \"%s\";\n" \
+			"checkbox.checked =  \"true\";\n" \
+			"checkbox.id =  \"%s\";\n" \
+			"checkbox.onclick =  function () {drawChart();} ;\n" \
+			"var label = document.createElement('label');\n" \
+			"label.htmlFor = \"id\";\n" \
+			"label.appendChild(document.createTextNode('%s  |  '));\n" \
+			"inputDiv.appendChild(checkbox);\n" \
+			"inputDiv.appendChild(label);}\n",name,name,name,name);
 }
 
 void gg_writeFooter(FILE *f,char *way, char* title, char *xtype, char *ytype, char * xlabel, char *ylabel){
 	fprintf(f,
-	"         ]);\n"
+/*	"         ]);\n"*/
 	"        var options = { \n" \
 	"          title: '%s - %s',\n" \
 /*	"          hAxis: {title: 'Age', minValue: 0, maxValue: 15},\n" \
 	"          vAxis: {title: 'Weight', minValue: 0, maxValue: 15},\n" \ */
-	"          legend: 'none'\n" \
+/*	"          legend: 'none'\n" \*/
+	"          explorer: { actions: ['dragToZoom', 'rightClickToReset'] } ,\n" \
+	"          pointSize: 2\n,lineWidth: 1," \
 	"        };\n" \
 	"\n" \
 	"        var chart = new google.visualization.ScatterChart(document.getElementById('chart_div'));\n" \
-	"        chart.draw(data, options);\n" \
+	"        var i=0;\n" \
+	"        var selected=[];\n" \
+	"        var children = inputDiv.childNodes;\n" \
+	"        for(var j=0; j<children.length ; j++){\n" \
+	"        	if(j%%2==0){\n" \
+	"        		if(children[j].checked == true){\n" \
+	"        			selected.push(i);\n" \
+	"        		}\n" \
+	"        		i++;\n" \
+	"        	}\n" \
+	"        }\n" \
+	"        var myView = new google.visualization.DataView(data);\n"
+	"        if(selected.length>1){myView.setColumns(selected);\n" \
+	"        chart.draw(myView, options);}\n" \
 	"      }\n" \
 	"    </script>\n" \
 	"  </head>\n" \
 	"  <body>\n" \
 	"    <div id=\"chart_div\" style=\"width: 900px; height: 500px;\"></div>\n" \
+	"    <div id=\"select_div\"></div>\n" \
 	"  </body>\n" \
 	"</html>\n",way,title );
 }
@@ -253,19 +310,29 @@ void seqGrahSeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq, void* g
 		Boris[Vian].writeTextTime(data->graph[way],seq->ts,SEQ_MAP_END(seq),"R",reinject);
 		data->reinject[way] += SEQ_MAP_LEN(seq);
 	}
-	Boris[Vian].writeTimeVerticalLine(data->graph[way],seq->ts,SEQ_MAP_START(seq),SEQ_MAP_LEN(seq),msf->id);
+	Boris[Vian].writeTimeVerticalLine(data->graph[way],seq->ts,SEQ_MAP_START(seq),SEQ_MAP_LEN(seq),(msf->id+1)%8);
 }
 
 void seqGrahAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack, void* graphData, MPTCPConnInfo *mi, int way){
 	seqData *data = ((seqData*) graphData);
-	Boris[Vian].writeTimeDot(data->graph[TOGGLE(way)],ack->ts,ACK_MAP(ack),msf->id);
+	//Boris[Vian].writeTimeDot(data->graph[TOGGLE(way)],ack->ts,ACK_MAP(ack),(msf->id+1)%8);
 }
 
 void destroySeq(void** graphData, MPTCPConnInfo *mci){
 	seqData *data = ((seqData*) *graphData);
+	Boris[Vian].writeFooter(data->graph[S2C],wayString[S2C],"Time sequence",TIMEVAL,DOUBLE,LABELTIME,LABELSEQ);
+	Boris[Vian].writeFooter(data->graph[C2S],wayString[C2S],"Time sequence",TIMEVAL,DOUBLE,LABELTIME,LABELSEQ);
 	fclose(data->graph[S2C]);
 	fclose(data->graph[C2S]);
 	fprintf(stderr,"Seq graph Destroy...\n");
+}
+
+void handleNewSFSeq(mptcp_sf *msf, void* graphData, MPTCPConnInfo *mi){
+	seqData *data = ((seqData*) graphData);
+	char str[42];
+	sprintf(str,"subflow_%d",msf->id);
+	Boris[Vian].writeSeries(data->graph[C2S],"number",str);
+	Boris[Vian].writeSeries(data->graph[S2C],"number",str);
 }
 
 /**
@@ -279,6 +346,8 @@ void initCI(void** graphData, MPTCPConnInfo *mci){
 	mci->lastack[C2S] = NULL;
 	mci->firstSeq[S2C] = NULL;
 	mci->firstSeq[C2S] = NULL;
+	mci->lastAckSize[S2C] = 0;
+	mci->lastAckSize[C2S] = 0;
 }
 
 
@@ -293,14 +362,18 @@ void CISeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq,  void* graph
 		addElementOrderedReverseUnique(seq,mi->unacked[way],&added);
 }
 
-void stripUnack(mptcp_ack *ack, List *unacked){
+unsigned int stripUnack(mptcp_ack *ack, List *unacked){
 	//while(unacked->size > 0 && SEQ_MAP_END( ((mptcp_map*)unacked->head->element) ) <= ACK_MAP(ack))
-	while(unacked->size > 0 && beforeOrEUI(SEQ_MAP_END( ((mptcp_map*)unacked->head->element) ) , ACK_MAP(ack)))
+	unsigned int r=0;
+	while(unacked->size > 0 && beforeOrEUI(SEQ_MAP_END( ((mptcp_map*)unacked->head->element) ) , ACK_MAP(ack))){
+		r+=SEQ_MAP_LEN(((mptcp_map*)unacked->head->element));
 		removeHead(unacked);
+	}
+	return r;
 }
 
 void CIAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack,  void* graphData, MPTCPConnInfo *mi, int way){
-	stripUnack(ack, mi->unacked[TOGGLE(way)]->l);
+	mi->lastAckSize[way] = stripUnack(ack, mi->unacked[TOGGLE(way)]->l);
 	//if(mi->lastack[way] == NULL || ACK_MAP(mi->lastack[way]) < ACK_MAP(ack)){
 	if(mi->lastack[way] == NULL || beforeOrEUI(ACK_MAP(mi->lastack[way]) , ACK_MAP(ack))){
 		mi->lastack[way] = ack;
@@ -342,6 +415,14 @@ void initWinFlight(void** graphData, MPTCPConnInfo *mci){
 
 	*(data->mpFlightSize[S2C]) = 0;
 	*(data->mpFlightSize[C2S]) = 0;
+
+	Boris[Vian].writeSeries(data->graph[C2S] , "number", "Window");
+	Boris[Vian].writeSeries(data->graph[C2S] , "number", "MPTCP_Flight_size");
+	Boris[Vian].writeSeries(data->graph[C2S] , "number", "Sum_of_the_TCP_flight_size");
+
+	Boris[Vian].writeSeries(data->graph[S2C] , "number", "Window");
+	Boris[Vian].writeSeries(data->graph[S2C] , "number", "MPTCP_Flight_size");
+	Boris[Vian].writeSeries(data->graph[S2C] , "number", "Sum_of_the_TCP_flight_size");
 }
 
 void sumFlight(void* element, int pos, void *fix, void *acc){
@@ -577,4 +658,28 @@ void destroyWFS(void** graphData, MPTCPConnInfo *mci){
 	if(modules[GRAPH_SEQUENCE].activated == ACTIVE_MODULE)
 		writeStats(wfsData->f,"reinjected",mci->mc->id,sData->reinject[C2S],sData->reinject[S2C]);
 	fclose(wfsData->f);
+}
+
+
+void initAS(void** graphData, MPTCPConnInfo *mci){
+	asData* data = (asData*) exitMalloc(sizeof(bwData));
+	*graphData = data;
+	data->graph[S2C] = Boris[Vian].openFile("acksize",mci->mc->id,S2C);
+	data->graph[C2S] = Boris[Vian].openFile("acksize",mci->mc->id,C2S);
+	Boris[Vian].writeHeader(data->graph[S2C],wayString[S2C],"MPTCP Ack size",TIMEVAL,DOUBLE,LABELTIME,"Ack size");
+	Boris[Vian].writeHeader(data->graph[C2S],wayString[C2S],"MPTCP Ack size",TIMEVAL,DOUBLE,LABELTIME,"Ack size");
+}
+void asGrahSeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq,  void* graphData, MPTCPConnInfo *mi, int way){
+
+}
+void asGrahAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack,  void* graphData, MPTCPConnInfo *mi, int way){
+	asData *data = ((asData*) graphData);
+	Boris[Vian].writeTimeDot(data->graph[TOGGLE(way)],ack->ts,mi->lastAckSize[way],msf->id);
+}
+void destroyAS(void** graphData, MPTCPConnInfo *mci){
+	asData *data = ((asData*) *graphData);
+	Boris[Vian].writeFooter(data->graph[S2C],wayString[S2C],"MPTCP Ack size",TIMEVAL,DOUBLE,LABELTIME,"Ack size");
+	Boris[Vian].writeFooter(data->graph[S2C],wayString[S2C],"MPTCP Ack size",TIMEVAL,DOUBLE,LABELTIME,"Ack size");
+	fclose(data->graph[S2C]);
+	fclose(data->graph[C2S]);
 }

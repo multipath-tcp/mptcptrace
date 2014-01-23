@@ -44,6 +44,7 @@ typedef struct bwData bwData;
 typedef struct winFlightData winFlightData;
 typedef struct tcpWinFlightData tcpWinFlightData;
 typedef struct wFSData wFSData;
+typedef struct asData asData;
 
 /******
  * xplot writer
@@ -57,6 +58,7 @@ void xpl_textTime(FILE *f, struct timeval tsx, unsigned int y, char* text, int c
 void xpl_writeHeader(FILE *f,char *way, char* title, char *xtype, char *ytype, char * xlabel, char *ylabel);
 void xpl_writeFooter(FILE *f,char *way, char* title, char *xtype, char *ytype, char * xlabel, char *ylabel);
 FILE* xpl_openGraphFile(char *name, int id, int way);
+void xpl_writeSeries(FILE *f, char *type, char *name);
 
 void gg_verticalLine(FILE* f, unsigned int x, unsigned int y, unsigned long h, int color);
 void gg_verticalLineTime(FILE* f, struct timeval tsx, unsigned int y, unsigned int h, int color);
@@ -66,11 +68,18 @@ void gg_textTime(FILE *f, struct timeval tsx, unsigned int y, char* text, int co
 void gg_writeHeader(FILE *f,char *way, char* title, char *xtype, char *ytype, char * xlabel, char *ylabel);
 void gg_writeFooter(FILE *f,char *way, char* title, char *xtype, char *ytype, char * xlabel, char *ylabel);
 FILE* gg_openGraphFile(char *name, int id, int way);
+void gg_writeSeries(FILE *f, char *type, char *name);
 
 void initSeq(void** graphData, MPTCPConnInfo *mci);
 void seqGrahSeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq,  void* graphData, MPTCPConnInfo *mi, int way);
 void seqGrahAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack,  void* graphData, MPTCPConnInfo *mi, int way);
 void destroySeq(void** graphData, MPTCPConnInfo *mci);
+void handleNewSFSeq(mptcp_sf *msf, void* graphData, MPTCPConnInfo *mi);
+
+void initAS(void** graphData, MPTCPConnInfo *mci);
+void asGrahSeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq,  void* graphData, MPTCPConnInfo *mi, int way);
+void asGrahAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack,  void* graphData, MPTCPConnInfo *mi, int way);
+void destroyAS(void** graphData, MPTCPConnInfo *mci);
 
 void initCI(void** graphData, MPTCPConnInfo *mci);
 void CISeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq,  void* graphData, MPTCPConnInfo *mi, int way);
@@ -111,6 +120,10 @@ struct seqData{
 	FILE *graph[WAYS];
 	OrderedList *seq[WAYS];
 	unsigned int reinject[WAYS];
+};
+
+struct asData{
+	FILE *graph[WAYS];
 };
 
 struct wFSData{
@@ -161,6 +174,7 @@ struct Writer{
 	void (*writeTimeVerticalLineDouble) (FILE* f, struct timeval tsx, unsigned int y, double h, int color);
 	void (*writeTextTime) (FILE *f, struct timeval tsx, unsigned int y, char* text, int color);
 	void (*writeFooter)(FILE *f,char *way, char* title, char *xtype, char *ytype, char * xlabel, char *ylabel);
+	void (*writeSeries)(FILE *f, char *type, char *name);
 };
 
 extern graphModule modules[];

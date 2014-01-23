@@ -197,6 +197,7 @@ void add_MPTCP_conn_thirdAck(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp
 		}
 	}
 	initSequenceNumber(msf->mc_parent,ts);
+	for(i=0;i<MAX_GRAPH;i++) if(modules[i].activated && modules[i].handleNewSF) modules[i].handleNewSF(msf,msf->mc_parent->graphdata[i],msf->mc_parent->mci);
 	//TODO build the init sequence number based on key
 }
 

@@ -59,7 +59,7 @@ int parseArgs(int argc, char *argv[]){
 			exit(0);
 			break;
 		case 'a':
-		   //ack_burst_graph =  ACK_BURST;
+			modules[GRAPH_ACKSIZE].activated = ACTIVE_MODULE;
 		   break;
 		case 'G':
 			gpInterv = atoi(optarg);

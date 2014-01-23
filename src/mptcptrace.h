@@ -39,7 +39,8 @@
 #define WIN_FLIGHT			2
 #define GRAPH_GOODPUT		3
 #define STAT_WFS			4
-#define MAX_GRAPH			5
+#define GRAPH_ACKSIZE		5
+#define MAX_GRAPH			6
 
 #define TCP_WIN_FLIGHT		0
 #define TCP_MAX_GRAPH		1
@@ -66,6 +67,7 @@ struct MPTCPConnInfo{
 	OrderedList *unacked[WAYS];
 	mptcp_ack *lastack[WAYS];
 	mptcp_map *firstSeq[WAYS];
+	unsigned int lastAckSize[WAYS];
 	//win etc.
 };
 
