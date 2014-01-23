@@ -315,7 +315,7 @@ void seqGrahSeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq, void* g
 
 void seqGrahAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack, void* graphData, MPTCPConnInfo *mi, int way){
 	seqData *data = ((seqData*) graphData);
-	//Boris[Vian].writeTimeDot(data->graph[TOGGLE(way)],ack->ts,ACK_MAP(ack),(msf->id+1)%8);
+	Boris[Vian].writeTimeDot(data->graph[TOGGLE(way)],ack->ts,ACK_MAP(ack),(msf->id+1)%8);
 }
 
 void destroySeq(void** graphData, MPTCPConnInfo *mci){
