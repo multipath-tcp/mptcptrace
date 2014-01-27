@@ -32,6 +32,7 @@
 
 #define	XPLOT_WRITER	0
 #define GOOGLE_WRITER	1
+#define CSV_WRITER	1
 
 #define WINDOW_CLOSE_TO_FS	10000
 
@@ -69,6 +70,16 @@ void gg_writeHeader(FILE *f,char *way, char* title, char *xtype, char *ytype, ch
 void gg_writeFooter(FILE *f,char *way, char* title, char *xtype, char *ytype, char * xlabel, char *ylabel);
 FILE* gg_openGraphFile(char *name, int id, int way);
 void gg_writeSeries(FILE *f, char *type, char *name);
+
+void csv_verticalLine(FILE* f, unsigned int x, unsigned int y, unsigned long h, int color);
+void csv_verticalLineTime(FILE* f, struct timeval tsx, unsigned int y, unsigned int h, int color);
+void csv_diamondTime(FILE *f, struct timeval tsx, unsigned int y, int color);
+void csv_diamondTimeDouble(FILE *f, struct timeval tsx, double y, int color);
+void csv_textTime(FILE *f, struct timeval tsx, unsigned int y, char* text, int color);
+void csv_writeHeader(FILE *f,char *way, char* title, char *xtype, char *ytype, char * xlabel, char *ylabel);
+void csv_writeFooter(FILE *f,char *way, char* title, char *xtype, char *ytype, char * xlabel, char *ylabel);
+FILE* csv_openGraphFile(char *name, int id, int way);
+void csv_writeSeries(FILE *f, char *type, char *name);
 
 void initSeq(void** graphData, MPTCPConnInfo *mci);
 void seqGrahSeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq,  void* graphData, MPTCPConnInfo *mi, int way);
