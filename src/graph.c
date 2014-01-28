@@ -109,6 +109,7 @@ tcpGraphModule tcpModules[]={
 		destroyTcpWinFlight},
 };
 char* wayString[]={"s2c","c2s"};
+int wayInt[]={S2C,C2S};
 
 
 /******
@@ -293,6 +294,17 @@ FILE* csv_openGraphFile(char *name, int id, int way){
 	return fopen(str,"w");
 }
 void csv_writeSeries(FILE *f, char *type, char *name){}
+
+void writeSeriesBoth(FILE **f, char *type, char *name){
+	BOTH(Boris[Vian].writeSeries LP f, COMMA type  COMMA name RP )
+}
+
+void writeHeaderBoth(FILE **f,char* title, char *xtype, char *ytype, char * xlabel, char *ylabel){
+	BOTH3(Boris[Vian].writeHeader LP f, COMMA wayString, COMMA  title COMMA xtype COMMA ytype COMMA xlabel COMMA ylabel RP )
+}
+void openGraphFileBoth(FILE **f,char *name, int id){
+	BOTH3(f, = Boris[Vian].openFile LP name COMMA id COMMA wayInt, RP )
+}
 /**
  * sequence graph
  */
@@ -412,38 +424,19 @@ void initWinFlight(void** graphData, MPTCPConnInfo *mci){
 	winFlightData* data = (winFlightData*) exitMalloc(sizeof(winFlightData));
 	*graphData = data;
 
-	data->graph[S2C] = Boris[Vian].openFile("flight",mci->mc->id,S2C);
-	data->graph[C2S] = Boris[Vian].openFile("flight",mci->mc->id,C2S);
-	Boris[Vian].writeHeader(data->graph[S2C],wayString[S2C],"Window and MPTCP flight size",TIMEVAL,DOUBLE,LABELTIME,"size");
-	Boris[Vian].writeHeader(data->graph[C2S],wayString[C2S],"Window and MPTCP flight size",TIMEVAL,DOUBLE,LABELTIME,"size");
+	openGraphFileBoth(data->graph,"flight",mci->mc->id);
+	writeHeaderBoth(data->graph,"Window and MPTCP flight size",TIMEVAL,DOUBLE,LABELTIME,"size");
+	writeSeriesBoth(data->graph,"number","Window");
+	writeSeriesBoth(data->graph,"number", "MPTCP_Flight_size");
+	writeSeriesBoth(data->graph,"number","Sum_of_the_TCP_flight_size");
 
-	data->graphRE[S2C] = Boris[Vian].openFile("rightEdge",mci->mc->id,S2C);
-	data->graphRE[C2S] = Boris[Vian].openFile("rightEdge",mci->mc->id,C2S);
-	Boris[Vian].writeHeader(data->graphRE[S2C],wayString[S2C],"Right edge Evolution",TIMEVAL,DOUBLE,LABELTIME,"Right edge");
-	Boris[Vian].writeHeader(data->graphRE[C2S],wayString[C2S],"Right edge Evolution",TIMEVAL,DOUBLE,LABELTIME,"Right edge");
+	openGraphFileBoth(data->graphRE,"rightEdge",mci->mc->id);
+	writeHeaderBoth(data->graphRE,"Right edge Evolution",TIMEVAL,DOUBLE,LABELTIME,"Right edge");
 
-	data->rightEdge[S2C] = 0;
-	data->rightEdge[C2S] = 0;
+	BOTH(data->rightEdge,= 0)
 
-	data->mpFlightSize[S2C] = exitMalloc(sizeof(unsigned int));
-	data->mpFlightSize[C2S] = exitMalloc(sizeof(unsigned int));
-
-	data->mpWindow[S2C] = exitMalloc(sizeof(unsigned int));
-	data->mpWindow[C2S] = exitMalloc(sizeof(unsigned int));
-
-	*(data->mpWindow[S2C]) = 0;
-	*(data->mpWindow[C2S]) = 0;
-
-	*(data->mpFlightSize[S2C]) = 0;
-	*(data->mpFlightSize[C2S]) = 0;
-
-	Boris[Vian].writeSeries(data->graph[C2S] , "number", "Window");
-	Boris[Vian].writeSeries(data->graph[C2S] , "number", "MPTCP_Flight_size");
-	Boris[Vian].writeSeries(data->graph[C2S] , "number", "Sum_of_the_TCP_flight_size");
-
-	Boris[Vian].writeSeries(data->graph[S2C] , "number", "Window");
-	Boris[Vian].writeSeries(data->graph[S2C] , "number", "MPTCP_Flight_size");
-	Boris[Vian].writeSeries(data->graph[S2C] , "number", "Sum_of_the_TCP_flight_size");
+	INITBOTH(data->mpFlightSize,0,unsigned int);
+	INITBOTH(data->mpWindow,0,unsigned int);
 }
 
 void sumFlight(void* element, int pos, void *fix, void *acc){

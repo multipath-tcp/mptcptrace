@@ -213,6 +213,13 @@ struct sniff_tcp {
 #define MAX_TCP_HEADER(tcp) (((u_char*)(tcp+1))+(TH_OFF(tcp)*4-20))
 #define OPTION_TCP_HEADER(tcp) ((u_char*)(tcp+1))
 
+#define LP (
+#define RP )
+#define COMMA ,
+
 #define TOGGLE(way) (way==S2C ? C2S : S2C)
+#define BOTH(s,t) s[S2C]t; s[C2S]t;
+#define BOTH3(s,t,u) s[S2C]t[S2C]u; s[C2S]t[C2S]u;
+#define INITBOTH(var,val,type) BOTH3(var,= (type *) exitMalloc(sizeof(type)) ; *var,=val)
 
 #endif /* MPTCPTRACE_H_ */
