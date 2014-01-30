@@ -32,7 +32,7 @@
 
 #define	XPLOT_WRITER	0
 #define GOOGLE_WRITER	1
-#define CSV_WRITER	1
+#define CSV_WRITER		2
 
 #define WINDOW_CLOSE_TO_FS	10000
 
@@ -46,7 +46,7 @@ typedef struct winFlightData winFlightData;
 typedef struct tcpWinFlightData tcpWinFlightData;
 typedef struct wFSData wFSData;
 typedef struct asData asData;
-
+typedef struct seriesData seriesData;
 /******
  * xplot writer
  */
@@ -116,6 +116,12 @@ void wFSSeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq,  void* grap
 void wFSAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack,  void* graphData, MPTCPConnInfo *mi, int way);
 void destroyWFS(void** graphData, MPTCPConnInfo *mci);
 
+void initSeries(void** graphData, MPTCPConnInfo *mci);
+void seriesSeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq,  void* graphData, MPTCPConnInfo *mi, int way);
+void seriesAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack,  void* graphData, MPTCPConnInfo *mi, int way);
+void destroySeries(void** graphData, MPTCPConnInfo *mci);
+void handleNewSFSeries(mptcp_sf *msf, void* graphData, MPTCPConnInfo *mi);
+
 struct bwData{
 	FILE *graph[WAYS];
 	mptcp_ack *mpa[WAYS];
@@ -134,6 +140,10 @@ struct seqData{
 };
 
 struct asData{
+	FILE *graph[WAYS];
+};
+
+struct seriesData{
 	FILE *graph[WAYS];
 };
 

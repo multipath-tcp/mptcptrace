@@ -67,6 +67,7 @@ int parseArgs(int argc, char *argv[]){
 		   break;
 		case 'w':
 			Vian = atoi(optarg);
+			if(Vian == CSV_WRITER) modules[OUTPUT_SERIES].activated = ACTIVE_MODULE;
 		   break;
 		case 'F':
 			modules[WIN_FLIGHT].activated = ACTIVE_MODULE;

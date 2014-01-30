@@ -65,6 +65,15 @@ graphModule modules[]={
 		asGrahAck,
 		destroyAS,
 		NULL
+		},
+		{
+		UNACTIVE_MODULE,
+		"output series informations",
+		initSeries,
+		seriesSeq,
+		seriesAck,
+		destroySeries,
+		NULL
 		}
 };
 
@@ -676,7 +685,7 @@ void destroyWFS(void** graphData, MPTCPConnInfo *mci){
 
 
 void initAS(void** graphData, MPTCPConnInfo *mci){
-	asData* data = (asData*) exitMalloc(sizeof(bwData));
+	asData* data = (asData*) exitMalloc(sizeof(asData));
 	*graphData = data;
 	data->graph[S2C] = Boris[Vian].openFile("acksize",mci->mc->id,S2C);
 	data->graph[C2S] = Boris[Vian].openFile("acksize",mci->mc->id,C2S);
@@ -696,4 +705,27 @@ void destroyAS(void** graphData, MPTCPConnInfo *mci){
 	Boris[Vian].writeFooter(data->graph[S2C],wayString[S2C],"MPTCP Ack size",TIMEVAL,DOUBLE,LABELTIME,"Ack size");
 	fclose(data->graph[S2C]);
 	fclose(data->graph[C2S]);
+}
+
+
+void initSeries(void** graphData, MPTCPConnInfo *mci){
+	seriesData* data = (seriesData*) exitMalloc(sizeof(seriesData));
+	*graphData = data;
+	openGraphFileBoth(data->graph,"sf",mci->mc->id);
+}
+void seriesSeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq,  void* graphData, MPTCPConnInfo *mi, int way){}
+void seriesAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack,  void* graphData, MPTCPConnInfo *mi, int way){}
+void outputSF(void* element, int pos, void *fix, void *acc){
+	mptcp_sf *msf = (mptcp_sf*) element;
+	FILE* f = (FILE*) fix;
+	//TODO, we could hava per flow informations printed out here
+	fprintf(f,"%d\n",msf->id);
+}
+void destroySeries(void** graphData, MPTCPConnInfo *mci){
+	seriesData *data = ((seriesData*) *graphData);
+	BOTH(applyReverse LP mci->mc->mptcp_sfs COMMA outputSF COMMA data->graph, COMMA NULL RP )
+	BOTH(fclose LP data->graph, RP)
+}
+void handleNewSFSeries(mptcp_sf *msf, void* graphData, MPTCPConnInfo *mi){
+//MOVE to destroy... we know more thing a this point.
 }

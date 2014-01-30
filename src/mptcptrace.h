@@ -40,7 +40,8 @@
 #define GRAPH_GOODPUT		3
 #define STAT_WFS			4
 #define GRAPH_ACKSIZE		5
-#define MAX_GRAPH			6
+#define OUTPUT_SERIES		6
+#define MAX_GRAPH			7
 
 #define TCP_WIN_FLIGHT		0
 #define TCP_MAX_GRAPH		1
