@@ -130,24 +130,24 @@ void xpl_verticalLine(FILE* f, unsigned int x, unsigned int y, unsigned long h, 
 }
 
 void xpl_verticalLineTime(FILE* f, struct timeval tsx, unsigned int y, unsigned int h, int color){
-	fprintf(f,"%i\n",color);
+	fprintf(f,"%i\n",color % 8);
 	fprintf(f,"line %li.%06li %u %li.%06li %u \n",tsx.tv_sec, tsx.tv_usec,y,tsx.tv_sec, tsx.tv_usec,y+h);
 }
 
 void xpl_diamondTime(FILE *f, struct timeval tsx, unsigned int y, int color){
-	fprintf(f,"%i\n",color);
+	fprintf(f,"%i\n",color % 8);
 	fprintf(f,"diamond %li.%06li %u\n",tsx.tv_sec, tsx.tv_usec,y);
 }
 
 void xpl_diamondTimeDouble(FILE *f, struct timeval tsx, double y, int color){
-	fprintf(f,"%i\n",color);
+	fprintf(f,"%i\n",color % 8);
 	fprintf(f,"diamond %li.%06li %f\n",tsx.tv_sec, tsx.tv_usec,y);
 	//TODO google api
 	//fprintf(f,"[ new Date(%f), %f ],\n",tsx.tv_sec * 1000.0 + tsx.tv_usec / 1000.0 ,y);
 }
 
 void xpl_textTime(FILE *f, struct timeval tsx, unsigned int y, char* text, int color){
-	fprintf(f,"%i\n",color);
+	fprintf(f,"%i\n",color % 8);
 	fprintf(f,"atext %li.%06li %u\n R \n",tsx.tv_sec, tsx.tv_usec,y);
 }
 void xpl_writeHeader(FILE *f,char *way, char* title, char *xtype, char *ytype, char * xlabel, char *ylabel){
@@ -352,12 +352,12 @@ void seqGrahSeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq, void* g
 		Boris[Vian].writeTextTime(data->graph[way],seq->ts,SEQ_MAP_END(seq),"R",reinject);
 		data->reinject[way] += SEQ_MAP_LEN(seq);
 	}
-	Boris[Vian].writeTimeVerticalLine(data->graph[way],seq->ts,SEQ_MAP_START(seq),SEQ_MAP_LEN(seq),(msf->id+1)%8);
+	Boris[Vian].writeTimeVerticalLine(data->graph[way],seq->ts,SEQ_MAP_START(seq),SEQ_MAP_LEN(seq),(msf->id+1));
 }
 
 void seqGrahAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack, void* graphData, MPTCPConnInfo *mi, int way){
 	seqData *data = ((seqData*) graphData);
-	Boris[Vian].writeTimeDot(data->graph[TOGGLE(way)],ack->ts,ACK_MAP(ack),(msf->id+1)%8);
+	Boris[Vian].writeTimeDot(data->graph[TOGGLE(way)],ack->ts,ACK_MAP(ack),(msf->id+1));
 }
 
 void destroySeq(void** graphData, MPTCPConnInfo *mci){
@@ -697,7 +697,7 @@ void asGrahSeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq,  void* g
 }
 void asGrahAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack,  void* graphData, MPTCPConnInfo *mi, int way){
 	asData *data = ((asData*) graphData);
-	Boris[Vian].writeTimeDot(data->graph[TOGGLE(way)],ack->ts,mi->lastAckSize[way],msf->id);
+	Boris[Vian].writeTimeDot(data->graph[TOGGLE(way)],ack->ts,mi->lastAckSize[way],msf->id + 1 );
 }
 void destroyAS(void** graphData, MPTCPConnInfo *mci){
 	asData *data = ((asData*) *graphData);
