@@ -617,7 +617,7 @@ void bWAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack,  void* graph
 		//moving avg
 		if(data->movingAvgFull[way]){
 			tv_sub(&tmp3,data->lastNacks[way][data->movingAvg[way]]->ts);
-			Boris[Vian].writeTimeDotDouble(data->graph[TOGGLE(way)],ack->ts,(ACK_MAP(ack) - ACK_MAP(data->lastNacks[way][data->movingAvg[way]]))/(tmp3.tv_sec+tmp3.tv_usec/1000000.0) / 1000000.0 ,5);
+			Boris[Vian].writeTimeDotDouble(data->graph[TOGGLE(way)],ack->ts,(ACK_MAP(ack) - ACK_MAP(data->lastNacks[way][data->movingAvg[way]]))/(tmp3.tv_sec+tmp3.tv_usec/1000000.0) / 1000000.0 ,3);
 		}
 	}
 
