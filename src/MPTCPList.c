@@ -124,6 +124,7 @@ void add_MPTCP_conn_syn(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp){
 	if(getSubflow(l,msf)){
 		printf("Retransmitted syn ..... \n");
 		free(msf);
+		return;
 	}
 	else{
 		mptcp_conn *mc = (mptcp_conn*) exitMalloc(sizeof(mptcp_conn));
@@ -139,6 +140,7 @@ void add_MPTCP_conn_syn(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp){
 		mc->mptcp_sfs = newList(NULL);
 		fprintf(stderr,"Fixing mc_parent...\n");
 		msf->mc_parent = mc;
+		fprintf(stderr, "-----------Adding master sf ... ! ..... \n");
 		msf->id=mc->mptcp_sfs->size;
 		addElementHead(msf,mc->mptcp_sfs);
 		addElementHead(mc,l);
@@ -170,7 +172,7 @@ void add_MPTCP_conn_thirdAck(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp
 	build_msf(ip,tcp,&msfs,DONOTREVERT,0);
 	msf = getSubflow(l,&msfs);
 	if(msf==NULL){
-		fprintf(stderr,"syn lost, looking to recover...\n");
+		fprintf(stderr,"------------------------syn lost, looking to recover...\n");
 		msf = search(lostSynCapable,sublfowsEqualWrapper,&msfs,NULL);
 		if(msf != NULL){
 			fprintf(stderr,"Find him in the lost list...\n");
@@ -194,6 +196,10 @@ void add_MPTCP_conn_thirdAck(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp
 			//TODO we should remove msf from the lost list
 			addElementHead(msf,mc->mptcp_sfs);
 			addElementHead(mc,l);
+		}
+		else{
+			fprintf(stderr,"------------------------------I do not find him in the lost list...\n");
+			return;
 		}
 	}
 	initSequenceNumber(msf->mc_parent,ts);
@@ -317,6 +323,11 @@ void add_MPTCP_join_syn(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp){
 	mptcp_sf *msf = new_msf(ip,tcp);
 	int i;
 	u_char* wscale = next_opt_x(OPTION_TCP_HEADER(tcp),MAX_TCP_HEADER(tcp), TCP_OPT_WSCALE);
+	if(getSubflow(l,msf)){
+		fprintf(stderr,"Retransmitted syn_join ..... \n");
+		free(msf);
+		return;
+	}
 	if(wscale)
 		msf->wscale[C2S] = *(wscale+2);
 	u_char* mpcapa = first_MPTCP_sub(tcp,MPTCP_SUB_JOIN);
@@ -324,6 +335,7 @@ void add_MPTCP_join_syn(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp){
 	if(mc){
 		msf->mc_parent = mc;
 		msf->id=mc->mptcp_sfs->size;
+		fprintf(stderr, "-----------Adding sf ... ! ..... \n");
 		addElementHead(msf, mc->mptcp_sfs);
 		memcpy(&msf->client_nonce,mpcapa+8,NONCE_SIZE);
 		fprintf(stderr, "The key has been found and the nonce copied ! ..... \n");
