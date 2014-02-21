@@ -38,6 +38,13 @@ void printHelp(){
 	printf("\t -G x : generate MPTCP goodput, interval is defined by x\n");
 }
 
+void write_info(){
+	FILE* f = fopen("mptcptrace_info","w");
+	//Version is defined in the makefile based on git last commit.
+	fprintf(f,"Version : %s\n",VERSION);
+	fclose(f);
+}
+
 int parseArgs(int argc, char *argv[]){
 	int c;
 	while ((c = getopt (argc, argv, "haG:sr:f:o:Fw:")) != -1)
@@ -195,6 +202,7 @@ int mainLoop(){
 
 }
 
+
 int main(int argc, char *argv[]){
 	printf("MPTCP trace V0.0 alpha : says Hello.\n");
 	if(parseArgs(argc,argv) != 0){
@@ -203,5 +211,6 @@ int main(int argc, char *argv[]){
 		exit(1);
 	}
 	mainLoop();
+	write_info();
 
 }
