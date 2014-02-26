@@ -115,12 +115,14 @@ struct mptcp_map{
 	u_char len[LEN_SIZE];
 	struct timeval ts;
 	mptcp_sf *msf;
+	int ref_count;
 };
 
 struct mptcp_ack{
 	u_char ack[ACK_SIZE];
 	struct timeval ts;
 	unsigned int right_edge;
+	int ref_count;
 };
 
 struct mptcp_road{
@@ -222,5 +224,7 @@ struct sniff_tcp {
 #define BOTH(s,t) s[S2C]t; s[C2S]t;
 #define BOTH3(s,t,u) s[S2C]t[S2C]u; s[C2S]t[C2S]u;
 #define INITBOTH(var,val,type) BOTH3(var,= (type *) exitMalloc(sizeof(type)) ; *var,=val)
+
+extern int garbageEvery;
 
 #endif /* MPTCPTRACE_H_ */

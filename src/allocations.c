@@ -23,11 +23,13 @@
 
 mptcp_map* new_mpm(){
 	mptcp_map *mpm = (mptcp_map*) malloc(sizeof(mptcp_map));
+	mpm->ref_count=0;
 	return mpm;
 }
 
 mptcp_ack* new_mpa(){
 	mptcp_ack *mpa = (mptcp_ack*) malloc(sizeof(mptcp_ack));
+	mpa->ref_count=0;
 	return mpa;
 }
 

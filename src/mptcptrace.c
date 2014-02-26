@@ -29,6 +29,7 @@ char *filename = NULL;
 int offset_opt = -1;
 int gpInterv = 0;
 int Vian = 0;
+int garbageEvery = 1000000;
 
 void printHelp(){
 	printf("mptcptrace help :\n");
