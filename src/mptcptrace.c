@@ -29,7 +29,7 @@ char *filename = NULL;
 int offset_opt = -1;
 int gpInterv = 0;
 int Vian = 0;
-int garbageEvery = 1000000;
+int maxSeqQueueLength = 0; // back log we want to keep to check for reinjection, if 0, infinite back log.
 
 void printHelp(){
 	printf("mptcptrace help :\n");
@@ -48,13 +48,16 @@ void write_info(){
 
 int parseArgs(int argc, char *argv[]){
 	int c;
-	while ((c = getopt (argc, argv, "haG:sr:f:o:Fw:")) != -1)
+	while ((c = getopt (argc, argv, "haG:sr:f:o:Fw:q:")) != -1)
 		switch (c){
 		case 's':
 			modules[GRAPH_SEQUENCE].activated = ACTIVE_MODULE;
 			break;
 		case 'r':
 		 //rtt_graph = atoi(optarg);
+			break;
+		case 'q':
+			maxSeqQueueLength = atoi(optarg);
 			break;
 		case 'o':
 			offset_opt = atoi(optarg);
@@ -146,18 +149,30 @@ void handle_MPTCP_DSS(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp, struc
 	for(i=0;i<MAX_GRAPH;i++){
 		if(*(mpdss+3) & 0x04){
 			mpmap = new_mpm();
+			mpmap->ref_count++;
 			memcpy(&mpmap->start,mpdss+4+ackoff,SEQ_SIZE);
 			memcpy(&mpmap->len,mpdss+4+ackoff+8,LEN_SIZE);
 			mpmap->ts=ts;
 			mpmap->msf = msf;
 			if(modules[i].activated) modules[i].handleMPTCPSeq(tcp, msf, mpmap, msf->mc_parent->graphdata[i], msf->mc_parent->mci, way);
+			mpmap->ref_count--;
+			if(mpmap->ref_count==0){
+				//fprintf(stderr,"we should free this map");
+				free(mpmap);
+			}
 		}
 		if(*(mpdss+3) & 0x01){
 			mpack = new_mpa();
+			mpack->ref_count++;
 			memcpy(&mpack->ack,mpdss+4,ACK_SIZE);
 			mpack->right_edge = ACK_MAP(mpack) + (ntohs(tcp->th_win) << msf->wscale[way]);
 			mpack->ts=ts;
 			if(modules[i].activated)  modules[i].handleMPTCPAck(tcp, msf, mpack, msf->mc_parent->graphdata[i], msf->mc_parent->mci, way);
+			mpack->ref_count--;
+			if(mpack->ref_count==0){
+				//fprintf(stderr,"we should free this ack");
+				free(mpack);
+			}
 		}
 	}
 }

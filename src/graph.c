@@ -314,6 +314,31 @@ void writeHeaderBoth(FILE **f,char* title, char *xtype, char *ytype, char * xlab
 void openGraphFileBoth(FILE **f,char *name, int id){
 	BOTH3(f, = Boris[Vian].openFile LP name COMMA id COMMA wayInt, RP )
 }
+
+void incRefAck(mptcp_ack *ack,int i){
+	ack->ref_count+=i;
+	if(ack->ref_count==0)
+		free(ack);
+}
+void incRefAckNode(Node *n){
+	incRefAck((mptcp_ack*)n->element,1);
+}
+void decRefAckNode(Node *n){
+	incRefAck((mptcp_ack*)n->element,-1);
+}
+void incRefSeq(mptcp_map *seq,int i){
+	seq->ref_count+=i;
+	if(seq->ref_count==0){
+		//fprintf(stderr,"I'm freeeeeeeeee\n");
+		free(seq);
+	}
+}
+void incRefSeqNode(Node *n){
+	incRefSeq((mptcp_map*)n->element,1);
+}
+void decRefSeqNode(Node *n){
+	incRefSeq((mptcp_map*)n->element,-1);
+}
 /**
  * sequence graph
  */
@@ -347,7 +372,15 @@ int isReinjected(Node *n, List *seq){
 void seqGrahSeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq, void* graphData, MPTCPConnInfo *mi, int way){
 	seqData *data = ((seqData*) graphData);
 	Node *n = addElementOrderedReverse(seq,data->seq[way]);
-	int reinject = isReinjected(n,data->seq[way]->l);
+	int checkReinject=1;
+	incRefSeqNode(n);
+	/*for big traces, we can't keep all the map in memory, if seq reinjection is too late we won't see it*/
+	if(maxSeqQueueLength != 0 && data->seq[way]->l->size > maxSeqQueueLength){
+		decRefSeqNode(data->seq[way]->l->head);
+		if(n==data->seq[way]->l->head) checkReinject=0;
+		removeHeadFree(data->seq[way]->l);
+	}
+	int reinject = checkReinject ? isReinjected(n,data->seq[way]->l) : -1;
 	if( reinject >= 0){
 		Boris[Vian].writeTextTime(data->graph[way],seq->ts,SEQ_MAP_END(seq),"R",reinject);
 		data->reinject[way] += SEQ_MAP_LEN(seq);
@@ -397,11 +430,17 @@ void initCI(void** graphData, MPTCPConnInfo *mci){
 
 void CISeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq,  void* graphData, MPTCPConnInfo *mi, int way){
 	int added;
-	if(mi->firstSeq[way] == NULL)
+	Node *n;
+	if(mi->firstSeq[way] == NULL){
 		mi->firstSeq[way] = seq;
+		incRefSeq(seq,1);
+	}
 	//if(mi->lastack[TOGGLE(way)] == NULL  ||  SEQ_MAP_END( seq ) >= ACK_MAP(mi->lastack[TOGGLE(way)]))
-	if(mi->lastack[TOGGLE(way)] == NULL  ||  afterOrEUI(SEQ_MAP_END( seq ), ACK_MAP(mi->lastack[TOGGLE(way)])))
-		addElementOrderedReverseUnique(seq,mi->unacked[way],&added);
+	if(mi->lastack[TOGGLE(way)] == NULL  ||  afterOrEUI(SEQ_MAP_END( seq ), ACK_MAP(mi->lastack[TOGGLE(way)]))){
+		n=addElementOrderedReverseUnique(seq,mi->unacked[way],&added);
+		if(added)
+			incRefSeqNode(n);
+	}
 }
 
 unsigned int stripUnack(mptcp_ack *ack, List *unacked){
@@ -409,7 +448,8 @@ unsigned int stripUnack(mptcp_ack *ack, List *unacked){
 	unsigned int r=0;
 	while(unacked->size > 0 && beforeOrEUI(SEQ_MAP_END( ((mptcp_map*)unacked->head->element) ) , ACK_MAP(ack))){
 		r+=SEQ_MAP_LEN(((mptcp_map*)unacked->head->element));
-		removeHead(unacked);
+		decRefSeqNode(unacked->head);
+		removeHeadFree(unacked);
 	}
 	return r;
 }
@@ -418,7 +458,9 @@ void CIAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack,  void* graph
 	mi->lastAckSize[way] = stripUnack(ack, mi->unacked[TOGGLE(way)]->l);
 	//if(mi->lastack[way] == NULL || ACK_MAP(mi->lastack[way]) < ACK_MAP(ack)){
 	if(mi->lastack[way] == NULL || beforeOrEUI(ACK_MAP(mi->lastack[way]) , ACK_MAP(ack))){
+		if(mi->lastack[way] != NULL ) incRefAck(mi->lastack[way],-1);
 		mi->lastack[way] = ack;
+		incRefAck(mi->lastack[way],1);
 	}
 
 }
@@ -522,9 +564,14 @@ void updateTCPUnack(struct sniff_ip *rawIP, struct sniff_tcp *rawTCP,mptcp_sf *m
 	seq->start = TCP_SEQ(rawTCP);
 	seq->end = seq->start + ntohs(rawIP->ip_len) - 4*(IP_HL(rawIP)) - 4*(TH_OFF(rawTCP));
 	int added;
+	Node *n;
 	//if(msf->tcpLastAck[TOGGLE(way)] == NULL || seq->start >= *(msf->tcpLastAck[TOGGLE(way)]))
-	if(msf->tcpLastAck[TOGGLE(way)] == NULL || afterOrEUI(seq->start , *(msf->tcpLastAck[TOGGLE(way)])))
-		addElementOrderedReverseUnique(seq,msf->tcpUnacked[way],&added);
+	if(msf->tcpLastAck[TOGGLE(way)] == NULL || afterOrEUI(seq->start , *(msf->tcpLastAck[TOGGLE(way)]))){
+		n=addElementOrderedReverseUnique(seq,msf->tcpUnacked[way],&added);
+		if(!added) free(seq);
+	}
+	else
+		free(seq);
 }
 
 void updateLastAck(struct sniff_tcp *rawTCP,mptcp_sf *msf, int way){
@@ -533,16 +580,23 @@ void updateLastAck(struct sniff_tcp *rawTCP,mptcp_sf *msf, int way){
 	ack = (unsigned int*)exitMalloc(sizeof(unsigned int));
 	*ack = TCP_ACK(rawTCP);
 	//if(msf->tcpLastAck[way] == NULL || msf->tcpLastAck[way] < ack)
-	if(msf->tcpLastAck[way] == NULL || beforeUI(*(msf->tcpLastAck[way]) , *ack))
+	if(msf->tcpLastAck[way] == NULL || beforeUI(*(msf->tcpLastAck[way]) , *ack)){
+		if(msf->tcpLastAck[way] != NULL) free(msf->tcpLastAck[way]);
 		msf->tcpLastAck[way] = ack;
+	}
+	else
+		free(ack);
 }
 void stripTCPUnack(struct sniff_tcp *rawTCP, List *unacked){
-	unsigned int *ack = (unsigned int*)exitMalloc(sizeof(unsigned int));
-	*ack = TCP_ACK(rawTCP);
+	//unsigned int *ack = (unsigned int*)exitMalloc(sizeof(unsigned int));
+	unsigned int ack;
+	ack = TCP_ACK(rawTCP);
 	if(!ACK_SET(rawTCP)) return;
 	//while(unacked->size > 0 && ((tcp_map*)unacked->head->element)->end <= *ack)
-	while(unacked->size > 0 && beforeOrEUI(((tcp_map*)unacked->head->element)->end, *ack))
-		removeHead(unacked);
+	while(unacked->size > 0 && beforeOrEUI(((tcp_map*)unacked->head->element)->end, ack)){
+		free(unacked->head->element);
+		removeHeadFree(unacked);
+	}
 }
 void initTcpWinFlight(void** graphData, MPTCPConnInfo *mci){
 
@@ -573,6 +627,8 @@ void initBW(void** graphData, MPTCPConnInfo *mci){
 	data->bucket[C2S] = 0;
 	data->lastNacks[C2S] = exitMalloc(sizeof(mptcp_ack*) * gpInterv);
 	data->lastNacks[S2C] = exitMalloc(sizeof(mptcp_ack*) * gpInterv);
+	memset(data->lastNacks[C2S],0,sizeof(mptcp_ack*) * gpInterv);
+	memset(data->lastNacks[S2C],0,sizeof(mptcp_ack*) * gpInterv);
 	data->movingAvg[C2S] = 0;
 	data->movingAvg[S2C] = 0;
 	data->movingAvgFull[C2S] = 0;
@@ -592,6 +648,7 @@ void bWAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack,  void* graph
 	if(data->mpa[way]==NULL){
 		data->mpa[way]=ack;
 		data->fmpa[way]=ack;
+		incRefAck(ack,2);
 	}
 	else{
 		//if(ACK_MAP(ack) <= ACK_MAP(data->mpa[way]) )
@@ -604,7 +661,9 @@ void bWAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack,  void* graph
 			tv_sub(&tmp,data->mpa[way]->ts);
 			Boris[Vian].writeTimeDotDouble(data->graph[TOGGLE(way)],ack->ts,(ACK_MAP(ack) - ACK_MAP(data->mpa[way]))/(tmp.tv_sec+tmp.tv_usec/1000000.0) / 1000000.0,1);
 			data->bucket[way]=0;
+			incRefAck(data->mpa[way],-1);
 			data->mpa[way] = ack;
+			incRefAck(ack,1);
 
 		}
 		else
@@ -612,7 +671,10 @@ void bWAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack,  void* graph
 		tv_sub(&tmp2,data->fmpa[way]->ts);
 		Boris[Vian].writeTimeDotDouble(data->graph[TOGGLE(way)],ack->ts,(ACK_MAP(ack) - ACK_MAP(data->fmpa[way]))/(tmp2.tv_sec+tmp2.tv_usec/1000000.0) / 1000000.0 ,2);
 
+		if( data->lastNacks[way][data->movingAvg[way]] != NULL) incRefAck(data->lastNacks[way][data->movingAvg[way]],-1);
 		data->lastNacks[way][data->movingAvg[way]]=ack;
+		incRefAck(ack,1);
+
 		data->movingAvg[way] = (data->movingAvg[way] + 1) % gpInterv;
 		//moving avg
 		if(data->movingAvgFull[way]){
@@ -627,6 +689,8 @@ void destroyBW(void** graphData, MPTCPConnInfo *mci){
 	bwData *data = ((bwData*) *graphData);
 	Boris[Vian].writeFooter(data->graph[S2C],wayString[S2C],"MPTCP goodput",TIMEVAL,DOUBLE,LABELTIME,"Goodput");
 	Boris[Vian].writeFooter(data->graph[C2S],wayString[C2S],"MPTCP goodput",TIMEVAL,DOUBLE,LABELTIME,"Goodput");
+	incRefAck(data->fmpa[C2S],-1);
+	incRefAck(data->fmpa[S2C],-1);
 	fclose(data->graph[S2C]);
 	fclose(data->graph[C2S]);
 }

@@ -66,6 +66,7 @@ Node* addElementOrderedReverse(void* element, OrderedList *ol);
 
 void destroyOrderedList(OrderedList* ol);
 void removeHead(List *l);
+void removeHeadFree(List *l);
 Node* addElementOrderedUnique(void* element, OrderedList *ol, int *added);
 Node* addElementOrderedReverseUnique(void* element, OrderedList *ol, int *added);
 #endif /* LIST_H_ */

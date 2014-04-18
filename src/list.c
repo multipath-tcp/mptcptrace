@@ -106,6 +106,13 @@ void removeHead(List *l){
 	}
 	l->size--;
 }
+void removeHeadFree(List *l){
+	if(l->size!=0){
+		Node* tmp=l->head;
+		removeHead(l);
+		free(tmp);
+	}
+}
 Node* applyUntilNode(List* l, void (*fun)(void* element,int pos,void* fix, void* acc),int (*stop)(void* element,int pos,void* fix, void* acc), void* fix, void* acc){
 	int i=0;
 	Node* n = l->head;
