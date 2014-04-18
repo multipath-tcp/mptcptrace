@@ -137,7 +137,7 @@ void add_MPTCP_conn_syn(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp){
 		u_char* mpcapa = first_MPTCP_sub(tcp,MPTCP_SUB_CAPABLE);
 		memcpy(&mc->client_key, mpcapa+4, KEY_SIZE);
 		//TODO free them
-		mc->mptcp_sfs = newList(NULL);
+		mc->mptcp_sfs = newList(freemsf);
 		fprintf(stderr,"Fixing mc_parent...\n");
 		msf->mc_parent = mc;
 		fprintf(stderr, "-----------Adding master sf ... ! ..... \n");

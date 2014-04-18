@@ -16,4 +16,7 @@ mptcp_map* new_mpm();
 
 mptcp_ack* new_mpa();
 
+void freemsf(void *element);
+void freecon(void *element);
+
 #endif /* ALLOCATIONS_H_ */

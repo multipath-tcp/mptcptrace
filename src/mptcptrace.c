@@ -186,7 +186,7 @@ int mainLoop(){
 	struct sniff_ip *ip_packet;
 	List *l;
 	List *lostSynCapable;
-	l = newList(NULL);
+	l = newList(freecon);
 	lostSynCapable = newList(NULL);
 	if(openFile(&offset,&handle) != 0){
 		fprintf(stderr,"Couldn't open the file %s\n",filename);
@@ -213,7 +213,8 @@ int mainLoop(){
 	pcap_close(handle);
 	printAllConnections(l);
 	apply(l,destroyModules,NULL,NULL);
-	//destroyList(l);
+	destroyList(l);
+	destroyList(lostSynCapable);
 	return 0;
 
 }

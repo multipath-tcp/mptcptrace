@@ -210,7 +210,8 @@ Node* addElementOrderedReverseUnique(void* element, OrderedList *ol, int *added)
 }
 
 void destroyList(List* l){
-	apply(l,destroyElement,l->destroyElement,NULL);
+	if(l->destroyElement != NULL)
+		apply(l,destroyElement,l->destroyElement,NULL);
 	int i=0;
 	Node *n = l->head, *tmp;
 	for(i=0 ; i < l->size;i++){

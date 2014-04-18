@@ -33,6 +33,33 @@ mptcp_ack* new_mpa(){
 	return mpa;
 }
 
+void freemsf(void *element){
+	mptcp_sf *msf= (mptcp_sf*) element;
+	destroyList(msf->mseqs[S2C]);
+	destroyList(msf->mseqs[C2S]);
+	destroyList(msf->macks[S2C]);
+	destroyList(msf->macks[C2S]);
+	destroyList(msf->tcpUnacked[S2C]->l);
+	destroyList(msf->tcpUnacked[C2S]->l);
+	BOTH(free LP msf->tcpLastAck,RP)
+	free(msf->tcpUnacked[S2C]);
+	free(msf->tcpUnacked[C2S]);
+	free(element);
+}
+void freecon(void *element){
+	mptcp_conn *con = (mptcp_conn*) element;
+	destroyList(con->mptcp_sfs);
+	destroyList(con->mci->unacked[C2S]->l);
+	destroyList(con->mci->unacked[S2C]->l);
+	BOTH( free LP con->mci->lastack, RP)
+	free(con->mci->unacked[C2S]);
+	free(con->mci->unacked[S2C]);
+	free(con->mci->firstSeq[C2S]);
+	free(con->mci->firstSeq[S2C]);
+	free(con->mci);
+	free(element);
+
+}
 void build_msf(struct sniff_ip *ip, struct sniff_tcp *tcp, mptcp_sf *msf, int revert, int initList){
 	if(revert){
 		memcpy(&msf->ip_dst,&ip->ip_src,sizeof(struct in_addr));
@@ -52,8 +79,8 @@ void build_msf(struct sniff_ip *ip, struct sniff_tcp *tcp, mptcp_sf *msf, int re
 		msf->mseqs[C2S] = newList(NULL);
 		msf->macks[S2C] = newList(NULL);
 		msf->macks[C2S] = newList(NULL);
-		msf->tcpUnacked[C2S] = newOrderedList(NULL,compareTcpMap);
-		msf->tcpUnacked[S2C] = newOrderedList(NULL,compareTcpMap);
+		msf->tcpUnacked[C2S] = newOrderedList(free,compareTcpMap);
+		msf->tcpUnacked[S2C] = newOrderedList(free,compareTcpMap);
 		msf->tcpLastAck[C2S] = NULL;
 		msf->tcpLastAck[S2C] = NULL;
 	}

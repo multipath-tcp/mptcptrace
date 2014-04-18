@@ -393,13 +393,21 @@ void seqGrahAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack, void* g
 	Boris[Vian].writeTimeDot(data->graph[TOGGLE(way)],ack->ts,ACK_MAP(ack),(msf->id+1));
 }
 
+void decSeqList(void* element, int pos, void *fix, void *acc){
+	mptcp_map* seq = (mptcp_map*) element;
+	incRefSeq(seq,-1);
+}
 void destroySeq(void** graphData, MPTCPConnInfo *mci){
 	seqData *data = ((seqData*) *graphData);
 	Boris[Vian].writeFooter(data->graph[S2C],wayString[S2C],"Time sequence",TIMEVAL,DOUBLE,LABELTIME,LABELSEQ);
 	Boris[Vian].writeFooter(data->graph[C2S],wayString[C2S],"Time sequence",TIMEVAL,DOUBLE,LABELTIME,LABELSEQ);
+	BOTH(apply LP data->seq,->l COMMA decSeqList COMMA NULL COMMA NULL RP)
+	BOTH(destroyList LP data->seq,->l RP)
+	BOTH(free LP data->seq, RP)
 	fclose(data->graph[S2C]);
 	fclose(data->graph[C2S]);
 	fprintf(stderr,"Seq graph Destroy...\n");
+	free(data);
 }
 
 void handleNewSFSeq(mptcp_sf *msf, void* graphData, MPTCPConnInfo *mi){
@@ -415,8 +423,8 @@ void handleNewSFSeq(mptcp_sf *msf, void* graphData, MPTCPConnInfo *mi){
  */
 void initCI(void** graphData, MPTCPConnInfo *mci){
 	printf("create global informations\n");
-	mci->unacked[S2C] = newOrderedList(NULL,compareMap);
-	mci->unacked[C2S] = newOrderedList(NULL,compareMap);
+	mci->unacked[S2C] = newOrderedList(free,compareMap);
+	mci->unacked[C2S] = newOrderedList(free,compareMap);
 	mci->lastack[S2C] = NULL;
 	mci->lastack[C2S] = NULL;
 	mci->firstSeq[S2C] = NULL;
@@ -553,6 +561,13 @@ void destroyWinFlight(void** graphData, MPTCPConnInfo *mci){
 	Boris[Vian].writeFooter(data->graphRE[C2S],wayString[C2S],"Right edge Evolution",TIMEVAL,DOUBLE,LABELTIME,"Right edge");
 	fclose(data->graph[S2C]);
 	fclose(data->graph[C2S]);
+	fclose(data->graphRE[C2S]);
+	fclose(data->graphRE[S2C]);
+	free(data->mpFlightSize[S2C]);
+	free(data->mpFlightSize[C2S]);
+	free(data->mpWindow[C2S]);
+	free(data->mpWindow[S2C]);
+	free(data);
 }
 
 /****
@@ -691,8 +706,16 @@ void destroyBW(void** graphData, MPTCPConnInfo *mci){
 	Boris[Vian].writeFooter(data->graph[C2S],wayString[C2S],"MPTCP goodput",TIMEVAL,DOUBLE,LABELTIME,"Goodput");
 	incRefAck(data->fmpa[C2S],-1);
 	incRefAck(data->fmpa[S2C],-1);
+	incRefAck(data->mpa[S2C],-1);
+	incRefAck(data->mpa[C2S],-1);
 	fclose(data->graph[S2C]);
 	fclose(data->graph[C2S]);
+	int i=0;
+	for(i=0;i<gpInterv;i++){
+		BOTH3(if LP data->lastNacks,[i]!=NULL RP incRefAck LP data->lastNacks,[i] COMMA -1 RP)
+	}
+	BOTH(free LP data->lastNacks,RP)
+	free(data);
 }
 
 void initWFS(void** graphData, MPTCPConnInfo *mci){
@@ -769,6 +792,7 @@ void destroyAS(void** graphData, MPTCPConnInfo *mci){
 	Boris[Vian].writeFooter(data->graph[S2C],wayString[S2C],"MPTCP Ack size",TIMEVAL,DOUBLE,LABELTIME,"Ack size");
 	fclose(data->graph[S2C]);
 	fclose(data->graph[C2S]);
+	free(data);
 }
 
 
