@@ -584,6 +584,7 @@ void winFlightSeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq,  void
 		couple c = {&way,data,&seq->ts};
 		apply(msf->mc_parent->mptcp_sfs,sumFlight2, &c, &flightSum);
 	}
+	flightSum=0;
 	apply(msf->mc_parent->mptcp_sfs,sumFlight, &way, &flightSum);
 	Boris[Vian].writeTimeDot(data->graph[way],seq->ts,flightSum ,3);
 }
@@ -616,6 +617,7 @@ void winFlightAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack,  void
 
 	if (flight_select & FLIGHT_PER_FLOW ){
 		couple c = {&way,data,&ack->ts};
+		flightSum=0;
 		apply(msf->mc_parent->mptcp_sfs,sumFlight2, &c, &flightSum);
 	}
 
