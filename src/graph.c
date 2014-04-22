@@ -644,6 +644,7 @@ void initBW(void** graphData, MPTCPConnInfo *mci){
 	data->lastNacks[S2C] = exitMalloc(sizeof(mptcp_ack*) * gpInterv);
 	memset(data->lastNacks[C2S],0,sizeof(mptcp_ack*) * gpInterv);
 	memset(data->lastNacks[S2C],0,sizeof(mptcp_ack*) * gpInterv);
+	BOTH(data->ackedData,=0)
 	data->movingAvg[C2S] = 0;
 	data->movingAvg[S2C] = 0;
 	data->movingAvgFull[C2S] = 0;
@@ -657,16 +658,23 @@ void bWSeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq,  void* graph
 
 void bWAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack,  void* graphData, MPTCPConnInfo *mi, int way){
 	bwData *data = ((bwData*) graphData);
+	int i=1;
+
 	struct timeval tmp = ack->ts;
 	struct timeval tmp2 = ack->ts;
 	struct timeval tmp3 = ack->ts;
 	if(data->mpa[way]==NULL){
 		data->mpa[way]=ack;
 		data->fmpa[way]=ack;
-		incRefAck(ack,2);
+		data->lastNacks[way][0]=ack;
+		data->movingAvg[way]=1;
+		incRefAck(ack,3);
 	}
 	else{
+		i=data->movingAvg[way]==0 ? gpInterv - 1 : data->movingAvg[way] - 1 % gpInterv;
 		//if(ACK_MAP(ack) <= ACK_MAP(data->mpa[way]) )
+		if(beforeOrEUI(ACK_MAP(ack),ACK_MAP(data->lastNacks[way][i])))
+			return;
 		if(beforeOrEUI(ACK_MAP(ack) , ACK_MAP(data->mpa[way]) ))
 		//if(beforeUI(ACK_MAP(ack) , ACK_MAP(data->mpa[way]) ))
 				return;
@@ -684,11 +692,18 @@ void bWAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack,  void* graph
 		else
 			data->bucket[way]++;
 		tv_sub(&tmp2,data->fmpa[way]->ts);
-		Boris[Vian].writeTimeDotDouble(data->graph[TOGGLE(way)],ack->ts,(ACK_MAP(ack) - ACK_MAP(data->fmpa[way]))/(tmp2.tv_sec+tmp2.tv_usec/1000000.0) / 1000000.0 ,2);
+		//Boris[Vian].writeTimeDotDouble(data->graph[TOGGLE(way)],ack->ts,(ACK_MAP(ack) - ACK_MAP(data->fmpa[way]))/(tmp2.tv_sec+tmp2.tv_usec/1000000.0) / 1000000.0 ,2);
 
 		if( data->lastNacks[way][data->movingAvg[way]] != NULL) incRefAck(data->lastNacks[way][data->movingAvg[way]],-1);
 		data->lastNacks[way][data->movingAvg[way]]=ack;
 		incRefAck(ack,1);
+
+		if(!(data->movingAvgFull[way]==0 && data->bucket[way]<1)){
+			//fprintf(stderr,"%u %u\n",data->movingAvg[way],i);
+			data->ackedData[TOGGLE(way)] += (ACK_MAP(data->lastNacks[way][data->movingAvg[way]]) - ACK_MAP(data->lastNacks[way][i]) );
+			//fprintf(stderr,"here%u\n",(ACK_MAP(data->lastNacks[way][data->movingAvg[way]]) - ACK_MAP(data->lastNacks[way][i]) ));
+			Boris[Vian].writeTimeDotDouble(data->graph[TOGGLE(way)],ack->ts,data->ackedData[TOGGLE(way)]/(tmp2.tv_sec+tmp2.tv_usec/1000000.0) / 1000000.0 ,2);
+		}
 
 		data->movingAvg[way] = (data->movingAvg[way] + 1) % gpInterv;
 		//moving avg

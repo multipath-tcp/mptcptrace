@@ -125,6 +125,7 @@ void handleNewSFSeries(mptcp_sf *msf, void* graphData, MPTCPConnInfo *mi);
 struct bwData{
 	FILE *graph[WAYS];
 	mptcp_ack *mpa[WAYS];
+	unsigned long int ackedData[WAYS];
 	int bucket[WAYS];
 	mptcp_ack *fmpa[WAYS];
 	mptcp_ack **lastNacks[WAYS];
