@@ -363,6 +363,7 @@ int isReinjected(Node *n, List *seq){
 
 	//if(n->previous != NULL && SEQ_MAP_END(prevmap) > SEQ_MAP_START(currmap) && prevmap->msf != currmap->msf){
 	if(n->previous != NULL && afterUI(SEQ_MAP_END(prevmap) , SEQ_MAP_START(currmap)) && prevmap->msf != currmap->msf){
+
 		return prevmap->msf->id;
 	}
 
@@ -371,16 +372,33 @@ int isReinjected(Node *n, List *seq){
 
 void seqGrahSeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq, void* graphData, MPTCPConnInfo *mi, int way){
 	seqData *data = ((seqData*) graphData);
-	Node *n = addElementOrderedReverse(seq,data->seq[way]);
+	int added;
+	Node *n = addElementOrderedReverseUnique(seq,data->seq[way],&added);
 	int checkReinject=1;
-	incRefSeqNode(n);
+	int reinject;
 	/*for big traces, we can't keep all the map in memory, if seq reinjection is too late we won't see it*/
 	if(maxSeqQueueLength != 0 && data->seq[way]->l->size > maxSeqQueueLength){
 		decRefSeqNode(data->seq[way]->l->head);
 		if(n==data->seq[way]->l->head) checkReinject=0;
 		removeHeadFree(data->seq[way]->l);
 	}
-	int reinject = checkReinject ? isReinjected(n,data->seq[way]->l) : -1;
+
+	if(!added){
+		mptcp_map *orig = (mptcp_map*) n->element;
+		reinject = checkReinject ? isReinjected(n,data->seq[way]->l) : -1;
+		if(reinject > -1 && (orig->injectOnSF & 1 << seq->msf->id) == 0){
+			orig->injectOnSF |= 1 << seq->msf->id;
+			orig->injectCount += 1;
+		}
+	}
+	else{
+		incRefSeqNode(n);
+		reinject = -1;
+	}
+	//int reinject = isReinjected(n,data->seq[way]->l);
+	//if( mi->lastack[TOGGLE(way)] !=NULL && afterOrEUI(SEQ_MAP_START(seq),ACK_MAP(mi->lastack[TOGGLE(way)])))
+	//	printf("ahahahhahhahahahahhahaahahhhahahahhahahhahah\n");
+
 	if( reinject >= 0){
 		Boris[Vian].writeTextTime(data->graph[way],seq->ts,SEQ_MAP_END(seq),"R",reinject);
 		data->reinject[way] += SEQ_MAP_LEN(seq);
@@ -397,8 +415,23 @@ void decSeqList(void* element, int pos, void *fix, void *acc){
 	mptcp_map* seq = (mptcp_map*) element;
 	incRefSeq(seq,-1);
 }
+void writeMap(void* element, int pos, void *fix, void *acc){
+	mptcp_map *m = (mptcp_map*) element;
+	FILE *f = (FILE*) fix;
+	if(m->injectCount > 1)
+		fprintf(f,"%i,%i\n",pos,m->injectCount);
+}
+
 void destroySeq(void** graphData, MPTCPConnInfo *mci){
 	seqData *data = ((seqData*) *graphData);
+
+	char str[42];
+	sprintf(str,"%s_map_reinject_%i.csv",wayString[C2S],mci->mc->id);
+	FILE* f=fopen(str,"w");
+	fprintf(f,"id,n\n");
+	apply(data->seq[C2S]->l,writeMap,f,NULL);
+	fclose(f);
+
 	Boris[Vian].writeFooter(data->graph[S2C],wayString[S2C],"Time sequence",TIMEVAL,DOUBLE,LABELTIME,LABELSEQ);
 	Boris[Vian].writeFooter(data->graph[C2S],wayString[C2S],"Time sequence",TIMEVAL,DOUBLE,LABELTIME,LABELSEQ);
 	BOTH(apply LP data->seq,->l COMMA decSeqList COMMA NULL COMMA NULL RP)
@@ -414,6 +447,9 @@ void handleNewSFSeq(mptcp_sf *msf, void* graphData, MPTCPConnInfo *mi){
 	seqData *data = ((seqData*) graphData);
 	char str[42];
 	sprintf(str,"subflow_%d",msf->id);
+	FILE *f =  fopen(str,"w");
+	fclose(f);
+
 	Boris[Vian].writeSeries(data->graph[C2S],"number",str);
 	Boris[Vian].writeSeries(data->graph[S2C],"number",str);
 }
@@ -492,6 +528,9 @@ void initWinFlight(void** graphData, MPTCPConnInfo *mci){
 	openGraphFileBoth(data->graphRE,"rightEdge",mci->mc->id);
 	writeHeaderBoth(data->graphRE,"Right edge Evolution",TIMEVAL,DOUBLE,LABELTIME,"Right edge");
 
+	openGraphFileBoth(data->graph2,"flight_per_flow",mci->mc->id);
+	writeHeaderBoth(data->graph2,"Per flow flight size",TIMEVAL,DOUBLE,LABELTIME,"size");
+
 	BOTH(data->rightEdge,= 0)
 
 	INITBOTH(data->mpFlightSize,0,unsigned int);
@@ -509,18 +548,41 @@ void sumFlight(void* element, int pos, void *fix, void *acc){
 		*sum = (*sum) + (luna->end - funa->start);
 	}
 }
+void sumFlight2(void* element, int pos, void *fix, void *acc){
+	mptcp_sf *msf = (mptcp_sf*) element;
+	tcp_map *funa,*luna;
+	unsigned int *sum = (int*) acc;
+	unsigned int toAdd=0;
+	couple *c = (couple*) fix;
+	int *way = c->x;
+	struct timeval *ts = c->z;
+	winFlightData *data = (winFlightData*)c->y;
+	if(msf->tcpUnacked[*way]->l->size > 0){
+		funa = (tcp_map*) msf->tcpUnacked[*way]->l->head->element;
+		luna = (tcp_map*) msf->tcpUnacked[*way]->l->tail->element;
+		toAdd =  (luna->end - funa->start);
+		Boris[Vian].writeTimeVerticalLine(data->graph2[*way],*ts,*sum,toAdd,msf->id);
+		*sum = (*sum) + toAdd;
+	}
+}
+
 
 void winFlightSeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq,  void* graphData, MPTCPConnInfo *mi, int way){
 	winFlightData *data = ((winFlightData*) graphData);
 	mptcp_map *funa,*luna;
-	//unsigned int mpflight = 0;
+	unsigned int mpflight = 0;
 	unsigned int flightSum=0;
 	if(mi->unacked[way]->l->size > 0){
 		funa = (mptcp_map*) mi->unacked[way]->l->head->element;
 		luna = (mptcp_map*) mi->unacked[way]->l->tail->element;
-		//mpflight = SEQ_MAP_END(luna) - SEQ_MAP_START(funa);
+		mpflight = SEQ_MAP_END(luna) - SEQ_MAP_START(funa);
 		*(data->mpFlightSize[way]) = SEQ_MAP_END(luna) - SEQ_MAP_START(funa);
 		Boris[Vian].writeTimeDot(data->graph[way],seq->ts,*(data->mpFlightSize[way]),2);
+	}
+
+	if (flight_select & FLIGHT_PER_FLOW ){
+		couple c = {&way,data,&seq->ts};
+		apply(msf->mc_parent->mptcp_sfs,sumFlight2, &c, &flightSum);
 	}
 	apply(msf->mc_parent->mptcp_sfs,sumFlight, &way, &flightSum);
 	Boris[Vian].writeTimeDot(data->graph[way],seq->ts,flightSum ,3);
@@ -536,8 +598,8 @@ void winFlightAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack,  void
 	//TODO handle wrap around
 	if(data->rightEdge[way] == 0 || beforeOrEUI(data->rightEdge[way], ack->right_edge)){
 		data->rightEdge[way] = ack->right_edge;
-		Boris[Vian].writeTimeDot(data->graphRE[TOGGLE(way)],ack->ts,data->rightEdge[way] ,2);
-		Boris[Vian].writeTimeDot(data->graphRE[TOGGLE(way)],ack->ts,ACK_MAP(mi->lastack[way]) ,1);
+	//	Boris[Vian].writeTimeDot(data->graphRE[TOGGLE(way)],ack->ts,data->rightEdge[way] ,2);
+	//	Boris[Vian].writeTimeDot(data->graphRE[TOGGLE(way)],ack->ts,ACK_MAP(mi->lastack[way]) ,1);
 	}
 	if(mi->lastack[way] != NULL){
 		*(data->mpWindow[TOGGLE(way)]) = data->rightEdge[way] - ACK_MAP(mi->lastack[way]);
@@ -552,6 +614,12 @@ void winFlightAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack,  void
 	apply(msf->mc_parent->mptcp_sfs,sumFlight, &way, &flightSum);
 	Boris[Vian].writeTimeDot(data->graph[way],ack->ts,flightSum ,3);
 
+	if (flight_select & FLIGHT_PER_FLOW ){
+		couple c = {&way,data,&ack->ts};
+		apply(msf->mc_parent->mptcp_sfs,sumFlight2, &c, &flightSum);
+	}
+
+
 }
 void destroyWinFlight(void** graphData, MPTCPConnInfo *mci){
 	winFlightData *data = ((winFlightData*) *graphData);
@@ -559,6 +627,7 @@ void destroyWinFlight(void** graphData, MPTCPConnInfo *mci){
 	Boris[Vian].writeFooter(data->graph[C2S],wayString[C2S],"Window and MPTCP flight size",TIMEVAL,DOUBLE,LABELTIME,"size");
 	Boris[Vian].writeFooter(data->graphRE[S2C],wayString[S2C],"Right edge Evolution",TIMEVAL,DOUBLE,LABELTIME,"Right edge");
 	Boris[Vian].writeFooter(data->graphRE[C2S],wayString[C2S],"Right edge Evolution",TIMEVAL,DOUBLE,LABELTIME,"Right edge");
+	BOTH(fclose LP data->graph2,RP)
 	fclose(data->graph[S2C]);
 	fclose(data->graph[C2S]);
 	fclose(data->graphRE[C2S]);
@@ -780,8 +849,11 @@ void destroyWFS(void** graphData, MPTCPConnInfo *mci){
 	writeStats(wfsData->f,"lastAck",mci->mc->id,ACK_MAP(mci->lastack[C2S]),ACK_MAP(mci->lastack[S2C]) );
 	writeStatsD(wfsData->f,"conTime",mci->mc->id,tmp.tv_sec + tmp.tv_usec / 1000000.0,tmp.tv_sec + tmp.tv_usec / 1000000.0 );
 	writeStats(wfsData->f,"seqAcked",mci->mc->id,ACK_MAP(mci->lastack[TOGGLE(C2S)]) - SEQ_MAP_START(mci->firstSeq[C2S]),ACK_MAP(mci->lastack[TOGGLE(S2C)]) - SEQ_MAP_START(mci->firstSeq[S2C]));
-	if(modules[GRAPH_SEQUENCE].activated == ACTIVE_MODULE)
+	if(modules[GRAPH_SEQUENCE].activated == ACTIVE_MODULE){
 		writeStats(wfsData->f,"reinjected",mci->mc->id,sData->reinject[C2S],sData->reinject[S2C]);
+		writeStatsD(wfsData->f,"precentReinjected",mci->mc->id,sData->reinject[C2S]*1.0/(ACK_MAP(mci->lastack[TOGGLE(C2S)]) - SEQ_MAP_START(mci->firstSeq[C2S])) ,
+															   sData->reinject[S2C]*1.0/(ACK_MAP(mci->lastack[TOGGLE(S2C)]) - SEQ_MAP_START(mci->firstSeq[S2C])) );
+	}
 	fclose(wfsData->f);
 }
 
@@ -816,13 +888,17 @@ void initSeries(void** graphData, MPTCPConnInfo *mci){
 	*graphData = data;
 	openGraphFileBoth(data->graph,"sf",mci->mc->id);
 }
-void seriesSeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq,  void* graphData, MPTCPConnInfo *mi, int way){}
-void seriesAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack,  void* graphData, MPTCPConnInfo *mi, int way){}
+void seriesSeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq,  void* graphData, MPTCPConnInfo *mi, int way){
+	msf->info[way].tput += SEQ_MAP_LEN(seq);
+}
+void seriesAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack,  void* graphData, MPTCPConnInfo *mi, int way){
+
+}
 void outputSF(void* element, int pos, void *fix, void *acc){
 	mptcp_sf *msf = (mptcp_sf*) element;
 	FILE* f = (FILE*) fix;
 	//TODO, we could hava per flow informations printed out here
-	fprintf(f,"%d\n",msf->id);
+	fprintf(f,"%d,%u,%u\n",msf->id,msf->info[C2S].tput,msf->info[S2C].tput);
 }
 void destroySeries(void** graphData, MPTCPConnInfo *mci){
 	seriesData *data = ((seriesData*) *graphData);

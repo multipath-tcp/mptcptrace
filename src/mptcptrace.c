@@ -30,6 +30,7 @@ int offset_opt = -1;
 int gpInterv = 0;
 int Vian = 0;
 int maxSeqQueueLength = 0; // back log we want to keep to check for reinjection, if 0, infinite back log.
+int flight_select=0;
 
 void printHelp(){
 	printf("mptcptrace help :\n");
@@ -48,7 +49,7 @@ void write_info(){
 
 int parseArgs(int argc, char *argv[]){
 	int c;
-	while ((c = getopt (argc, argv, "haG:sr:f:o:Fw:q:")) != -1)
+	while ((c = getopt (argc, argv, "haG:sr:f:o:F:w:q:")) != -1)
 		switch (c){
 		case 's':
 			modules[GRAPH_SEQUENCE].activated = ACTIVE_MODULE;
@@ -81,6 +82,7 @@ int parseArgs(int argc, char *argv[]){
 			if(Vian == CSV_WRITER) modules[OUTPUT_SERIES].activated = ACTIVE_MODULE;
 		   break;
 		case 'F':
+			flight_select=atoi(optarg);
 			modules[WIN_FLIGHT].activated = ACTIVE_MODULE;
 		   break;
 		case '?':
@@ -154,6 +156,8 @@ void handle_MPTCP_DSS(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp, struc
 			memcpy(&mpmap->len,mpdss+4+ackoff+8,LEN_SIZE);
 			mpmap->ts=ts;
 			mpmap->msf = msf;
+			mpmap->injectCount=1;
+			mpmap->injectOnSF |= 1 << msf->id;
 			if(modules[i].activated) modules[i].handleMPTCPSeq(tcp, msf, mpmap, msf->mc_parent->graphdata[i], msf->mc_parent->mci, way);
 			mpmap->ref_count--;
 			if(mpmap->ref_count==0){

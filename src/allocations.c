@@ -84,6 +84,7 @@ void build_msf(struct sniff_ip *ip, struct sniff_tcp *tcp, mptcp_sf *msf, int re
 		msf->tcpLastAck[C2S] = NULL;
 		msf->tcpLastAck[S2C] = NULL;
 	}
+	BOTH(msf->info , .tput =0)
 	msf->mc_parent = NULL;
 }
 

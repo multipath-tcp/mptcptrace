@@ -60,6 +60,8 @@ typedef struct seq_block seq_block;
 typedef struct MPTCPConnInfo MPTCPConnInfo;
 
 typedef struct toFindRes toFindRes;
+typedef struct couple couple;
+typedef struct sf_info sf_info;
 
 extern char *filename;
 
@@ -75,6 +77,17 @@ struct MPTCPConnInfo{
 struct toFindRes{
 	void* toFind;
 	void* result;
+};
+
+//widely accepted human conception of the couple
+struct couple{
+	void *x;
+	void *y;
+	void *z;
+};
+
+struct sf_info{
+	unsigned int tput;
 };
 /*
  * A mptcp sublflow
@@ -93,6 +106,8 @@ struct mptcp_sf{
 	List* mseqs[2];
 	List* macks[2];
 	u_char wscale[2];
+
+	sf_info info[WAYS];
 
 	//unacked by subflow
 	OrderedList *tcpUnacked[WAYS];
@@ -116,6 +131,8 @@ struct mptcp_map{
 	struct timeval ts;
 	mptcp_sf *msf;
 	int ref_count;
+	unsigned int injectOnSF;
+	unsigned int injectCount;
 };
 
 struct mptcp_ack{

@@ -157,6 +157,7 @@ struct wFSData{
 struct winFlightData{
 	FILE *graph[WAYS];
 	FILE *graphRE[WAYS];
+	FILE *graph2[WAYS]; /* per flow usage,  use flight size */
 	unsigned int rightEdge[WAYS];
 	unsigned int *mpFlightSize[WAYS];
 	unsigned int *mpWindow[WAYS];
@@ -204,5 +205,10 @@ extern Writer Boris[];
 extern int Vian;
 extern tcpGraphModule tcpModules[];
 extern int gpInterv;
+extern int flight_select;
+
+#define FLIGHT_REG		1
+#define FLIGHT_PER_FLOW	2
+#define FLIGHT_RE		4
 
 #endif /* GRAPH_H_ */
