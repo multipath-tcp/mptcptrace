@@ -74,6 +74,14 @@ graphModule modules[]={
 		seriesAck,
 		destroySeries,
 		NULL
+		},{
+		UNACTIVE_MODULE,
+		"RTT module",
+		initRTT,
+		rTTSeq,
+		rTTAck,
+		destroyRTT,
+		NULL
 		}
 };
 
@@ -137,6 +145,11 @@ void xpl_verticalLineTime(FILE* f, struct timeval tsx, unsigned int y, unsigned 
 void xpl_diamondTime(FILE *f, struct timeval tsx, unsigned int y, int color){
 	fprintf(f,"%i\n",color % 8);
 	fprintf(f,"diamond %li.%06li %u\n",tsx.tv_sec, tsx.tv_usec,y);
+}
+
+void xpl_diamonduint(FILE *f, unsigned int x, unsigned int y, int color){
+	fprintf(f,"%i\n",color % 8);
+	fprintf(f,"diamond %u %u\n",x,y);
 }
 
 void xpl_diamondTimeDouble(FILE *f, struct timeval tsx, double y, int color){
@@ -339,6 +352,10 @@ void incRefSeqNode(Node *n){
 void decRefSeqNode(Node *n){
 	incRefSeq((mptcp_map*)n->element,-1);
 }
+
+int isModuleEnabled(int m){
+	return modules[m].activated == ACTIVE_MODULE;
+}
 /**
  * sequence graph
  */
@@ -457,6 +474,7 @@ void handleNewSFSeq(mptcp_sf *msf, void* graphData, MPTCPConnInfo *mi){
 /**
  * global information
  */
+
 void initCI(void** graphData, MPTCPConnInfo *mci){
 	printf("create global informations\n");
 	mci->unacked[S2C] = newOrderedList(free,compareMap);
@@ -487,11 +505,30 @@ void CISeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq,  void* graph
 	}
 }
 
-unsigned int stripUnack(mptcp_ack *ack, List *unacked){
+void writeRTT(mptcp_map *seq,mptcp_ack *ack, MPTCPConnInfo *mi,int way){
+	struct timeval tmp = ack->ts;
+	if(isModuleEnabled(RTT)){
+		tv_sub(&tmp,seq->ts);
+		if(rtt_select & RTT_ARRIVAL){
+			Boris[Vian].writeTimeDotDouble(((rTTData*)(mi->mc->graphdata[RTT]))->graph[RTT_ARRIVAL_GRAPH][TOGGLE(way)],ack->ts,tmp.tv_sec*1000.0+tmp.tv_usec/1000.0,2);
+		}
+		if(rtt_select & RTT_SEQ_DEP){
+			Boris[Vian].writeTimeDotDouble(((rTTData*)(mi->mc->graphdata[RTT]))->graph[RTT_SEQ_DEP_GRAPH][TOGGLE(way)],seq->ts,tmp.tv_sec*1000.0+tmp.tv_usec/1000.0,2);
+		}
+		if(rtt_select & RTT_SEQ_NUM){
+			//todo
+			xpl_diamonduint(((rTTData*)(mi->mc->graphdata[RTT]))->graph[RTT_SEQ_NUM_GRAPH][TOGGLE(way)],SEQ_MAP_START(seq),tmp.tv_sec*1000.0+tmp.tv_usec/1000.0,2);
+			//Boris[Vian].writeUintDot(((rTTData*)(mi->mc->graphdata[RTT]))->graph[RTT_SEQ_NUM_GRAPH][TOGGLE(way)],SEQ_MAP_START(seq),tmp.tv_sec*1000.0+tmp.tv_usec/1000.0,2);
+		}
+	}
+}
+
+unsigned int stripUnack(mptcp_ack *ack, List *unacked, MPTCPConnInfo *mi,int way){
 	//while(unacked->size > 0 && SEQ_MAP_END( ((mptcp_map*)unacked->head->element) ) <= ACK_MAP(ack))
 	unsigned int r=0;
 	while(unacked->size > 0 && beforeOrEUI(SEQ_MAP_END( ((mptcp_map*)unacked->head->element) ) , ACK_MAP(ack))){
 		r+=SEQ_MAP_LEN(((mptcp_map*)unacked->head->element));
+		writeRTT(unacked->head->element,ack,mi,way);
 		decRefSeqNode(unacked->head);
 		removeHeadFree(unacked);
 	}
@@ -499,7 +536,7 @@ unsigned int stripUnack(mptcp_ack *ack, List *unacked){
 }
 
 void CIAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack,  void* graphData, MPTCPConnInfo *mi, int way){
-	mi->lastAckSize[way] = stripUnack(ack, mi->unacked[TOGGLE(way)]->l);
+	mi->lastAckSize[way] = stripUnack(ack, mi->unacked[TOGGLE(way)]->l,mi,way);
 	//if(mi->lastack[way] == NULL || ACK_MAP(mi->lastack[way]) < ACK_MAP(ack)){
 	if(mi->lastack[way] == NULL || beforeOrEUI(ACK_MAP(mi->lastack[way]) , ACK_MAP(ack))){
 		if(mi->lastack[way] != NULL ) incRefAck(mi->lastack[way],-1);
@@ -909,4 +946,37 @@ void destroySeries(void** graphData, MPTCPConnInfo *mci){
 }
 void handleNewSFSeries(mptcp_sf *msf, void* graphData, MPTCPConnInfo *mi){
 //MOVE to destroy... we know more thing a this point.
+}
+
+void initRTT(void** graphData, MPTCPConnInfo *mci){
+	rTTData* data = (rTTData*) exitMalloc(sizeof(rTTData));
+	*graphData = data;
+	if(rtt_select & RTT_ARRIVAL){
+		openGraphFileBoth(data->graph[RTT_ARRIVAL_GRAPH],"rtt_ack_ts",mci->mc->id);
+		writeHeaderBoth(data->graph[RTT_ARRIVAL_GRAPH],"RTT (ack time on x)",TIMEVAL,DOUBLE,LABELTIME,"RTT");
+	}
+	if(rtt_select & RTT_SEQ_DEP){
+		openGraphFileBoth(data->graph[RTT_SEQ_DEP_GRAPH],"rtt_seq_ts",mci->mc->id);
+		writeHeaderBoth(data->graph[RTT_SEQ_DEP_GRAPH],"RTT (seq time on x)",TIMEVAL,DOUBLE,LABELTIME,"RTT");
+	}
+	if(rtt_select & RTT_SEQ_NUM){
+		openGraphFileBoth(data->graph[RTT_SEQ_NUM_GRAPH],"rtt_seq_num",mci->mc->id);
+		writeHeaderBoth(data->graph[RTT_SEQ_NUM_GRAPH],"RTT (seq num on x)",DOUBLE,DOUBLE,LABELTIME,"RTT");
+	}
+
+}
+void rTTSeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq,  void* graphData, MPTCPConnInfo *mi, int way){}
+void rTTAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack,  void* graphData, MPTCPConnInfo *mi, int way){}
+void destroyRTT(void** graphData, MPTCPConnInfo *mci){
+	rTTData *data = ((rTTData*) *graphData);
+	if(rtt_select & RTT_ARRIVAL){
+		BOTH(fclose LP data->graph[RTT_ARRIVAL_GRAPH],RP)
+	}
+	if(rtt_select & RTT_SEQ_DEP){
+		BOTH(fclose LP data->graph[RTT_SEQ_DEP_GRAPH],RP)
+	}
+	if(rtt_select & RTT_SEQ_NUM){
+		BOTH(fclose LP data->graph[RTT_SEQ_NUM_GRAPH],RP)
+	}
+	free(data);
 }

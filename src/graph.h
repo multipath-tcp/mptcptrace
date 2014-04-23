@@ -34,6 +34,16 @@
 #define GOOGLE_WRITER	1
 #define CSV_WRITER		2
 
+#define RTT_ARRIVAL		1
+#define RTT_SEQ_DEP		2
+#define RTT_SEQ_NUM		4
+
+
+#define RTT_ARRIVAL_GRAPH	0
+#define RTT_SEQ_DEP_GRAPH	1
+#define RTT_SEQ_NUM_GRAPH	2
+#define RTT_GRAPHS		3
+
 #define WINDOW_CLOSE_TO_FS	10000
 
 typedef struct graphModule graphModule;
@@ -45,6 +55,7 @@ typedef struct bwData bwData;
 typedef struct winFlightData winFlightData;
 typedef struct tcpWinFlightData tcpWinFlightData;
 typedef struct wFSData wFSData;
+typedef struct rTTData rTTData;
 typedef struct asData asData;
 typedef struct seriesData seriesData;
 /******
@@ -122,6 +133,12 @@ void seriesAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack,  void* g
 void destroySeries(void** graphData, MPTCPConnInfo *mci);
 void handleNewSFSeries(mptcp_sf *msf, void* graphData, MPTCPConnInfo *mi);
 
+
+void initRTT(void** graphData, MPTCPConnInfo *mci);
+void rTTSeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq,  void* graphData, MPTCPConnInfo *mi, int way);
+void rTTAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack,  void* graphData, MPTCPConnInfo *mi, int way);
+void destroyRTT(void** graphData, MPTCPConnInfo *mci);
+
 struct bwData{
 	FILE *graph[WAYS];
 	mptcp_ack *mpa[WAYS];
@@ -152,6 +169,13 @@ struct wFSData{
 	FILE *f;
 	unsigned int *n[WAYS];
 	unsigned int *nWighted[WAYS];
+};
+
+struct rTTData{
+	FILE *graph[RTT_GRAPHS][WAYS];
+	float rttMin[WAYS];
+	float rttMax[WAYS];
+	//avg std...
 };
 
 struct winFlightData{
@@ -206,9 +230,12 @@ extern int Vian;
 extern tcpGraphModule tcpModules[];
 extern int gpInterv;
 extern int flight_select;
+extern int rtt_select;
 
 #define FLIGHT_REG		1
 #define FLIGHT_PER_FLOW	2
 #define FLIGHT_RE		4
+
+
 
 #endif /* GRAPH_H_ */

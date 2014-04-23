@@ -31,6 +31,7 @@ int gpInterv = 0;
 int Vian = 0;
 int maxSeqQueueLength = 0; // back log we want to keep to check for reinjection, if 0, infinite back log.
 int flight_select=0;
+int rtt_select=0;
 
 void printHelp(){
 	printf("mptcptrace help :\n");
@@ -54,9 +55,6 @@ int parseArgs(int argc, char *argv[]){
 		case 's':
 			modules[GRAPH_SEQUENCE].activated = ACTIVE_MODULE;
 			break;
-		case 'r':
-		 //rtt_graph = atoi(optarg);
-			break;
 		case 'q':
 			maxSeqQueueLength = atoi(optarg);
 			break;
@@ -72,6 +70,10 @@ int parseArgs(int argc, char *argv[]){
 			break;
 		case 'a':
 			modules[GRAPH_ACKSIZE].activated = ACTIVE_MODULE;
+		   break;
+		case 'r':
+			rtt_select = atoi(optarg);
+			modules[RTT].activated = ACTIVE_MODULE;
 		   break;
 		case 'G':
 			gpInterv = atoi(optarg);
