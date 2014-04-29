@@ -393,6 +393,10 @@ void seqGrahSeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq, void* g
 	Node *n = addElementOrderedReverseUnique(seq,data->seq[way],&added);
 	int checkReinject=1;
 	int reinject;
+	mptcp_map *orig = (mptcp_map*) n->element;
+	/*TODO TRIAL*/
+	reinject = added ? -1 : (orig->msf->id != seq->msf->id ? orig->msf->id : -1 );
+	/* END TRIAL*/
 	/*for big traces, we can't keep all the map in memory, if seq reinjection is too late we won't see it*/
 	if(maxSeqQueueLength != 0 && data->seq[way]->l->size > maxSeqQueueLength){
 		decRefSeqNode(data->seq[way]->l->head);
@@ -401,8 +405,7 @@ void seqGrahSeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq, void* g
 	}
 
 	if(!added){
-		mptcp_map *orig = (mptcp_map*) n->element;
-		reinject = checkReinject ? isReinjected(n,data->seq[way]->l) : -1;
+		//reinject = checkReinject ? isReinjected(n,data->seq[way]->l) : -1;
 		if(reinject > -1 && (orig->injectOnSF & 1 << seq->msf->id) == 0){
 			orig->injectOnSF |= 1 << seq->msf->id;
 			orig->injectCount += 1;
@@ -417,7 +420,7 @@ void seqGrahSeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq, void* g
 	//	printf("ahahahhahhahahahahhahaahahhhahahahhahahhahah\n");
 
 	if( reinject >= 0){
-		Boris[Vian].writeTextTime(data->graph[way],seq->ts,SEQ_MAP_END(seq),"R",reinject);
+		Boris[Vian].writeTextTime(data->graph[way],seq->ts,SEQ_MAP_END(seq),"R",reinject+1);
 		data->reinject[way] += SEQ_MAP_LEN(seq);
 	}
 	Boris[Vian].writeTimeVerticalLine(data->graph[way],seq->ts,SEQ_MAP_START(seq),SEQ_MAP_LEN(seq),(msf->id+1));
