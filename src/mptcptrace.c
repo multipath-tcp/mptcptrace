@@ -159,6 +159,7 @@ void handle_MPTCP_DSS(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp, struc
 			mpmap->ts=ts;
 			mpmap->msf = msf;
 			mpmap->injectCount=1;
+			mpmap->injectOnSF = 0;
 			mpmap->injectOnSF |= 1 << msf->id;
 			if(modules[i].activated) modules[i].handleMPTCPSeq(tcp, msf, mpmap, msf->mc_parent->graphdata[i], msf->mc_parent->mci, way);
 			mpmap->ref_count--;
