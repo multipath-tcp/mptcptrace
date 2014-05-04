@@ -297,13 +297,13 @@ FILE* gg_openGraphFile(char *name, int id, int way){
 
 void csv_verticalLine(FILE* f, unsigned int x, unsigned int y, unsigned long h, int color){}
 void csv_verticalLineTime(FILE* f, struct timeval tsx, unsigned int y, unsigned int h, int color){
-	fprintf(f,"%li.%06li;%u;%i;1;%u;1\n",tsx.tv_sec, tsx.tv_usec,y,color,y+h);
+	fprintf(f,"%li.%06li,%u,%i,1,%u,1\n",tsx.tv_sec, tsx.tv_usec,y,color,y+h);
 }
 void csv_diamondTime(FILE *f, struct timeval tsx, unsigned int y, int color){
-	fprintf(f,"%li.%06li;%u;%i;0;0\n",tsx.tv_sec, tsx.tv_usec,y,color);
+	fprintf(f,"%li.%06li,%u,%i,0,0\n",tsx.tv_sec, tsx.tv_usec,y,color);
 }
 void csv_diamondTimeDouble(FILE *f, struct timeval tsx, double y, int color){
-	fprintf(f,"%li.%06li;%f;%i;0;0\n",tsx.tv_sec, tsx.tv_usec,y,color);
+	fprintf(f,"%li.%06li,%f,%i,0,0\n",tsx.tv_sec, tsx.tv_usec,y,color);
 }
 void csv_textTime(FILE *f, struct timeval tsx, unsigned int y, char* text, int color){
 	//TODO
