@@ -374,6 +374,7 @@ void initSeq(void** graphData, MPTCPConnInfo *mci){
 	data->reinject[C2S] = 0;
 	for(i=0;i<MAX_SF;i++){
 		BOTH(data->reinjectNTimes,[i]=0)
+		BOTH(data->reinjectCausedBy,[i]=0)
 	}
 	fprintf(stderr,"Seq graph init...\n");
 }
@@ -427,6 +428,7 @@ void seqGrahSeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq, void* g
 	//	printf("ahahahhahhahahahahhahaahahhhahahahhahahhahah\n");
 
 	if( reinject >= 0){
+		data->reinjectCausedBy[way][orig->msf->id] += 1;
 		Boris[Vian].writeTextTime(data->graph[way],seq->ts,SEQ_MAP_END(seq),"R",reinject+1);
 		data->reinject[way] += SEQ_MAP_LEN(seq);
 	}
@@ -887,6 +889,16 @@ void writeStats(FILE *f, char *statName, int conID,unsigned int c2s, unsigned in
 void writeStatsD(FILE *f, char *statName, int conID,double c2s, double s2c){
 	fprintf(f,"%s;%i;%s;%f;%f\n",filename,conID,statName,c2s,s2c);
 }
+void printCausedBy(void* element, int pos, void *fix, void *acc){
+	mptcp_sf *msf = (mptcp_sf*) element;
+	seqData *sData = (seqData*) fix;
+	FILE* f = (FILE*) acc;
+	char str[42];
+	sprintf(str,"reinjectCausedBy_%i_%u",msf->id,ntohs(msf->th_sport));
+	writeStats(f,str,msf->mc_parent->id,sData->reinjectCausedBy[C2S][msf->id],sData->reinjectCausedBy[S2C][msf->id]);
+
+
+}
 void destroyWFS(void** graphData, MPTCPConnInfo *mci){
 	seqData *sData = ((seqData*) mci->mc->graphdata[GRAPH_SEQUENCE] );
 	wFSData *wfsData = ((wFSData*) *graphData);
@@ -915,6 +927,7 @@ void destroyWFS(void** graphData, MPTCPConnInfo *mci){
 			sprintf(str,"reinject_pc_%i",i);
 			writeStatsD(wfsData->f,str,mci->mc->id,sData->reinjectNTimes[C2S][i]/(float)injectPackSum[C2S],sData->reinjectNTimes[S2C][i]/(float)injectPackSum[S2C]);
 		}
+		apply(mci->mc->mptcp_sfs,printCausedBy,sData,wfsData->f);
 	}
 	fclose(wfsData->f);
 	free(wfsData);

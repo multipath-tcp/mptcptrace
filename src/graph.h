@@ -158,6 +158,7 @@ struct seqData{
 	OrderedList *seq[WAYS];
 	unsigned int reinject[WAYS];
 	unsigned int reinjectNTimes[WAYS][MAX_SF];
+	unsigned int reinjectCausedBy[WAYS][MAX_SF];
 };
 
 struct asData{
