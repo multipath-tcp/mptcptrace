@@ -891,11 +891,14 @@ void writeStatsD(FILE *f, char *statName, int conID,double c2s, double s2c){
 }
 void printCausedBy(void* element, int pos, void *fix, void *acc){
 	mptcp_sf *msf = (mptcp_sf*) element;
-	seqData *sData = (seqData*) fix;
+	seqData *sData = (seqData*)(((couple*)fix)->x);
+	unsigned int* injectOrigSum = ((unsigned int*)((couple*)fix)->y);
 	FILE* f = (FILE*) acc;
 	char str[42];
 	sprintf(str,"reinjectCausedBy_%i_%u",msf->id,ntohs(msf->th_sport));
 	writeStats(f,str,msf->mc_parent->id,sData->reinjectCausedBy[C2S][msf->id],sData->reinjectCausedBy[S2C][msf->id]);
+	sprintf(str,"reinjectCausedByPc_%i_%u",msf->id,ntohs(msf->th_sport));
+	writeStatsD(f,str,msf->mc_parent->id,sData->reinjectCausedBy[C2S][msf->id]/(float)injectOrigSum[C2S],sData->reinjectCausedBy[S2C][msf->id]/(float)injectOrigSum[S2C]);
 
 
 }
@@ -906,6 +909,7 @@ void destroyWFS(void** graphData, MPTCPConnInfo *mci){
 	char str[42];
 	struct timeval tmp = mci->lastack[S2C]->ts ;
 	unsigned int injectPackSum[WAYS] = {0,0};
+	unsigned int injectOrigSum[WAYS] = {0,0};
 	tv_sub(&tmp,mci->firstSeq[C2S]->ts );
 	//TODO determine constant value
 	//writeStats(wfsData->f,"winFsClose",mci->mc->id,*(wfsData->n[C2S]),*(wfsData->n[S2C]));
@@ -921,13 +925,18 @@ void destroyWFS(void** graphData, MPTCPConnInfo *mci){
 			sprintf(str,"reinject%i",i);
 			writeStats(wfsData->f,str,mci->mc->id,sData->reinjectNTimes[C2S][i],sData->reinjectNTimes[S2C][i]);
 			BOTH3(injectPackSum,+=sData->reinjectNTimes,[i])
+			BOTH3(injectOrigSum,+=sData->reinjectCausedBy,[i])
 		}
 		BOTH3(if LP injectPackSum, == 0 RP injectPackSum,=1)
+		BOTH3(if LP injectOrigSum, == 0 RP injectOrigSum,=1)
 		for(i=0;i<MAX_SF;i++){
 			sprintf(str,"reinject_pc_%i",i);
 			writeStatsD(wfsData->f,str,mci->mc->id,sData->reinjectNTimes[C2S][i]/(float)injectPackSum[C2S],sData->reinjectNTimes[S2C][i]/(float)injectPackSum[S2C]);
 		}
-		apply(mci->mc->mptcp_sfs,printCausedBy,sData,wfsData->f);
+		couple c;
+		c.x = sData;
+		c.y = injectOrigSum;
+		apply(mci->mc->mptcp_sfs,printCausedBy,&c,wfsData->f);
 	}
 	fclose(wfsData->f);
 	free(wfsData);
