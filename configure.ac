@@ -1,4 +1,4 @@
-AC_INIT([SimpleList], [1.0], [benjamin.hesmans@uclouvain.be])
+AC_INIT([mptcptrace], [1.0], [benjamin.hesmans@uclouvain.be])
 AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE([foreign -Wall -Werror])
 AM_PATH_CHECK()
