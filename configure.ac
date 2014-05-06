@@ -1,7 +1,7 @@
 AC_INIT([mptcptrace], [1.0], [benjamin.hesmans@uclouvain.be])
 AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE([foreign -Wall -Werror])
-AM_PATH_CHECK()
+PKG_CHECK_MODULES([CHECK], [check >= 0.9.4])
 m4_ifdef([AM_PROG_AR], [AM_PROG_AR])
 LT_INIT
 AC_PROG_CC
