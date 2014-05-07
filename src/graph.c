@@ -49,7 +49,7 @@ graphModule modules[]={
 		destroyBW,
 		NULL},
 		{
-		ACTIVE_MODULE,
+		UNACTIVE_MODULE,
 		"window and fs are close enough ?",
 		initWFS,
 		wFSSeq,

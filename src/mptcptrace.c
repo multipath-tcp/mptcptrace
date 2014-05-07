@@ -50,10 +50,13 @@ void write_info(){
 
 int parseArgs(int argc, char *argv[]){
 	int c;
-	while ((c = getopt (argc, argv, "haG:sr:f:o:F:w:q:")) != -1)
+	while ((c = getopt (argc, argv, "haG:sSr:f:o:F:w:q:")) != -1)
 		switch (c){
 		case 's':
 			modules[GRAPH_SEQUENCE].activated = ACTIVE_MODULE;
+			break;
+		case 'S':
+			modules[STAT_WFS].activated = ACTIVE_MODULE;
 			break;
 		case 'q':
 			maxSeqQueueLength = atoi(optarg);
