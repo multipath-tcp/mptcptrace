@@ -297,13 +297,13 @@ FILE* gg_openGraphFile(char *name, int id, int way){
 
 void csv_verticalLine(FILE* f, unsigned int x, unsigned int y, unsigned long h, int color){}
 void csv_verticalLineTime(FILE* f, struct timeval tsx, unsigned int y, unsigned int h, int color){
-	fprintf(f,"%li.%06li;%u;%i;1;%u;1\n",tsx.tv_sec, tsx.tv_usec,y,color,y+h);
+	fprintf(f,"%li.%06li,%u,%i,1,%u,1\n",tsx.tv_sec, tsx.tv_usec,y,color,y+h);
 }
 void csv_diamondTime(FILE *f, struct timeval tsx, unsigned int y, int color){
-	fprintf(f,"%li.%06li;%u;%i;0;0\n",tsx.tv_sec, tsx.tv_usec,y,color);
+	fprintf(f,"%li.%06li,%u,%i,0,0\n",tsx.tv_sec, tsx.tv_usec,y,color);
 }
 void csv_diamondTimeDouble(FILE *f, struct timeval tsx, double y, int color){
-	fprintf(f,"%li.%06li;%f;%i;0;0\n",tsx.tv_sec, tsx.tv_usec,y,color);
+	fprintf(f,"%li.%06li,%f,%i,0,0\n",tsx.tv_sec, tsx.tv_usec,y,color);
 }
 void csv_textTime(FILE *f, struct timeval tsx, unsigned int y, char* text, int color){
 	//TODO
@@ -362,6 +362,7 @@ int isModuleEnabled(int m){
 
 void initSeq(void** graphData, MPTCPConnInfo *mci){
 	seqData* data = (seqData*) exitMalloc(sizeof(seqData));
+	int i;
 	*graphData = data;
 	data->graph[S2C] = Boris[Vian].openFile("seq",mci->mc->id,S2C);
 	data->graph[C2S] = Boris[Vian].openFile("seq",mci->mc->id,C2S);
@@ -371,6 +372,10 @@ void initSeq(void** graphData, MPTCPConnInfo *mci){
 	data->seq[C2S] = newOrderedList(NULL,compareMap);
 	data->reinject[S2C] = 0;
 	data->reinject[C2S] = 0;
+	for(i=0;i<MAX_SF;i++){
+		BOTH(data->reinjectNTimes,[i]=0)
+		BOTH(data->reinjectCausedBy,[i]=0)
+	}
 	fprintf(stderr,"Seq graph init...\n");
 }
 
@@ -407,11 +412,14 @@ void seqGrahSeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq, void* g
 	if(!added){
 		//reinject = checkReinject ? isReinjected(n,data->seq[way]->l) : -1;
 		if(reinject > -1 && (orig->injectOnSF & 1 << seq->msf->id) == 0){
+			data->reinjectNTimes[way][orig->injectCount] -= 1;
 			orig->injectOnSF |= 1 << seq->msf->id;
 			orig->injectCount += 1;
+			data->reinjectNTimes[way][orig->injectCount] += 1;
 		}
 	}
 	else{
+		data->reinjectNTimes[way][orig->injectCount] += 1;
 		incRefSeqNode(n);
 		reinject = -1;
 	}
@@ -420,6 +428,7 @@ void seqGrahSeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq, void* g
 	//	printf("ahahahhahhahahahahhahaahahhhahahahhahahhahah\n");
 
 	if( reinject >= 0){
+		data->reinjectCausedBy[way][orig->msf->id] += 1;
 		Boris[Vian].writeTextTime(data->graph[way],seq->ts,SEQ_MAP_END(seq),"R",reinject+1);
 		data->reinject[way] += SEQ_MAP_LEN(seq);
 	}
@@ -861,16 +870,16 @@ void initWFS(void** graphData, MPTCPConnInfo *mci){
 void wFSSeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq,  void* graphData, MPTCPConnInfo *mi, int way){
 	winFlightData *winData = ((winFlightData*) msf->mc_parent->graphdata[WIN_FLIGHT]);
 	wFSData *wfsData = ((wFSData*) graphData);
-	if(modules[WIN_FLIGHT].activated && *(winData->mpWindow[way]) - *(winData->mpFlightSize[way]) < WINDOW_CLOSE_TO_FS){
+	/*if(modules[WIN_FLIGHT].activated && *(winData->mpWindow[way]) - *(winData->mpFlightSize[way]) < WINDOW_CLOSE_TO_FS){
 		(*(wfsData->n[way]))++;
-	}
+	}*/
 }
 void wFSAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack,  void* graphData, MPTCPConnInfo *mi, int way){
 	winFlightData *winData = ((winFlightData*) msf->mc_parent->graphdata[WIN_FLIGHT]);
 	wFSData *wfsData = ((wFSData*) graphData);
-	if(*(winData->mpWindow[TOGGLE(way)]) - *(winData->mpFlightSize[TOGGLE(way)]) < WINDOW_CLOSE_TO_FS){
-		(*(wfsData->n[TOGGLE(way)]))++;
-	}
+	/*if(*(winData->mpWindow[TOGGLE(way)]) - *(winData->mpFlightSize[TOGGLE(way)]) < WINDOW_CLOSE_TO_FS){
+	/	(*(wfsData->n[TOGGLE(way)]))++;
+	}*/
 }
 
 void writeStats(FILE *f, char *statName, int conID,unsigned int c2s, unsigned int s2c){
@@ -880,13 +889,30 @@ void writeStats(FILE *f, char *statName, int conID,unsigned int c2s, unsigned in
 void writeStatsD(FILE *f, char *statName, int conID,double c2s, double s2c){
 	fprintf(f,"%s;%i;%s;%f;%f\n",filename,conID,statName,c2s,s2c);
 }
+void printCausedBy(void* element, int pos, void *fix, void *acc){
+	mptcp_sf *msf = (mptcp_sf*) element;
+	seqData *sData = (seqData*)(((couple*)fix)->x);
+	unsigned int* injectOrigSum = ((unsigned int*)((couple*)fix)->y);
+	FILE* f = (FILE*) acc;
+	char str[42];
+	sprintf(str,"reinjectCausedBy_%i_%u",msf->id,ntohs(msf->th_sport));
+	writeStats(f,str,msf->mc_parent->id,sData->reinjectCausedBy[C2S][msf->id],sData->reinjectCausedBy[S2C][msf->id]);
+	sprintf(str,"reinjectCausedByPc_%i_%u",msf->id,ntohs(msf->th_sport));
+	writeStatsD(f,str,msf->mc_parent->id,sData->reinjectCausedBy[C2S][msf->id]/(float)injectOrigSum[C2S],sData->reinjectCausedBy[S2C][msf->id]/(float)injectOrigSum[S2C]);
+
+
+}
 void destroyWFS(void** graphData, MPTCPConnInfo *mci){
 	seqData *sData = ((seqData*) mci->mc->graphdata[GRAPH_SEQUENCE] );
 	wFSData *wfsData = ((wFSData*) *graphData);
+	int i;
+	char str[42];
 	struct timeval tmp = mci->lastack[S2C]->ts ;
+	unsigned int injectPackSum[WAYS] = {0,0};
+	unsigned int injectOrigSum[WAYS] = {0,0};
 	tv_sub(&tmp,mci->firstSeq[C2S]->ts );
 	//TODO determine constant value
-	writeStats(wfsData->f,"winFsClose",mci->mc->id,*(wfsData->n[C2S]),*(wfsData->n[S2C]));
+	//writeStats(wfsData->f,"winFsClose",mci->mc->id,*(wfsData->n[C2S]),*(wfsData->n[S2C]));
 	writeStats(wfsData->f,"firstSeq",mci->mc->id,SEQ_MAP_START(mci->firstSeq[C2S]),SEQ_MAP_START(mci->firstSeq[S2C]) );
 	writeStats(wfsData->f,"lastAck",mci->mc->id,ACK_MAP(mci->lastack[C2S]),ACK_MAP(mci->lastack[S2C]) );
 	writeStatsD(wfsData->f,"conTime",mci->mc->id,tmp.tv_sec + tmp.tv_usec / 1000000.0,tmp.tv_sec + tmp.tv_usec / 1000000.0 );
@@ -895,8 +921,25 @@ void destroyWFS(void** graphData, MPTCPConnInfo *mci){
 		writeStats(wfsData->f,"reinjected",mci->mc->id,sData->reinject[C2S],sData->reinject[S2C]);
 		writeStatsD(wfsData->f,"precentReinjected",mci->mc->id,sData->reinject[C2S]*1.0/(ACK_MAP(mci->lastack[TOGGLE(C2S)]) - SEQ_MAP_START(mci->firstSeq[C2S])) ,
 															   sData->reinject[S2C]*1.0/(ACK_MAP(mci->lastack[TOGGLE(S2C)]) - SEQ_MAP_START(mci->firstSeq[S2C])) );
+		for(i=0;i<MAX_SF;i++){
+			sprintf(str,"reinject%i",i);
+			writeStats(wfsData->f,str,mci->mc->id,sData->reinjectNTimes[C2S][i],sData->reinjectNTimes[S2C][i]);
+			BOTH3(injectPackSum,+=sData->reinjectNTimes,[i])
+			BOTH3(injectOrigSum,+=sData->reinjectCausedBy,[i])
+		}
+		BOTH3(if LP injectPackSum, == 0 RP injectPackSum,=1)
+		BOTH3(if LP injectOrigSum, == 0 RP injectOrigSum,=1)
+		for(i=0;i<MAX_SF;i++){
+			sprintf(str,"reinject_pc_%i",i);
+			writeStatsD(wfsData->f,str,mci->mc->id,sData->reinjectNTimes[C2S][i]/(float)injectPackSum[C2S],sData->reinjectNTimes[S2C][i]/(float)injectPackSum[S2C]);
+		}
+		couple c;
+		c.x = sData;
+		c.y = injectOrigSum;
+		apply(mci->mc->mptcp_sfs,printCausedBy,&c,wfsData->f);
 	}
 	fclose(wfsData->f);
+	free(wfsData);
 }
 
 

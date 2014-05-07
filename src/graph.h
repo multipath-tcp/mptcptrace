@@ -46,6 +46,8 @@
 
 #define WINDOW_CLOSE_TO_FS	10000
 
+#define MAX_SF			32
+
 typedef struct graphModule graphModule;
 typedef struct tcpGraphModule tcpGraphModule;
 typedef struct Writer Writer;
@@ -155,6 +157,8 @@ struct seqData{
 	FILE *graph[WAYS];
 	OrderedList *seq[WAYS];
 	unsigned int reinject[WAYS];
+	unsigned int reinjectNTimes[WAYS][MAX_SF];
+	unsigned int reinjectCausedBy[WAYS][MAX_SF];
 };
 
 struct asData{
