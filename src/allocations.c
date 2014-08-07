@@ -62,16 +62,37 @@ void freecon(void *element){
 }
 void build_msf(struct sniff_ip *ip, struct sniff_tcp *tcp, mptcp_sf *msf, int revert, int initList){
 	if(revert){
-		memcpy(&msf->ip_dst,&ip->ip_src,sizeof(struct in_addr));
-		memcpy(&msf->ip_src,&ip->ip_dst,sizeof(struct in_addr));
-		memcpy(&msf->th_dport,&tcp->th_sport,sizeof(u_short));
-		memcpy(&msf->th_sport,&tcp->th_dport,sizeof(u_short));
+		if(IS_IPV4(ip)){
+			msf->family=AF_INET;
+			memcpy(&msf->ip_dst.in,&ip->ip_src,sizeof(struct in_addr));
+			memcpy(&msf->ip_src.in,&ip->ip_dst,sizeof(struct in_addr));
+			memcpy(&msf->th_dport,&tcp->th_sport,sizeof(u_short));
+			memcpy(&msf->th_sport,&tcp->th_dport,sizeof(u_short));
+		}
+		else{
+			//copy for ipv6 kind of hacky look, to rewrite.
+			msf->family=AF_INET6;
+			memcpy(&msf->ip_dst.in6,((u_char*)ip)+8,sizeof(struct in6_addr));
+			memcpy(&msf->ip_src.in6,((u_char*)ip)+24,sizeof(struct in6_addr));
+			memcpy(&msf->th_dport,((u_char*)ip)+40,sizeof(u_short));
+			memcpy(&msf->th_sport,((u_char*)ip)+42,sizeof(u_short));
+		}
 	}
 	else{
-		memcpy(&msf->ip_dst,&ip->ip_dst,sizeof(struct in_addr));
-		memcpy(&msf->ip_src,&ip->ip_src,sizeof(struct in_addr));
-		memcpy(&msf->th_dport,&tcp->th_dport,sizeof(u_short));
-		memcpy(&msf->th_sport,&tcp->th_sport,sizeof(u_short));
+		if(IS_IPV4(ip)){
+			msf->family=AF_INET;
+			memcpy(&msf->ip_dst.in,&ip->ip_dst,sizeof(struct in_addr));
+			memcpy(&msf->ip_src.in,&ip->ip_src,sizeof(struct in_addr));
+			memcpy(&msf->th_dport,&tcp->th_dport,sizeof(u_short));
+			memcpy(&msf->th_sport,&tcp->th_sport,sizeof(u_short));
+		}
+		else{
+			msf->family=AF_INET6;
+			memcpy(&msf->ip_src.in6,((u_char*)ip)+8,sizeof(struct in6_addr));
+			memcpy(&msf->ip_dst.in6,((u_char*)ip)+24,sizeof(struct in6_addr));
+			memcpy(&msf->th_sport,((u_char*)ip)+40,sizeof(u_short));
+			memcpy(&msf->th_dport,((u_char*)ip)+42,sizeof(u_short));
+		}
 	}
 	if(initList){
 		//TODO define the free fun
@@ -90,11 +111,13 @@ void build_msf(struct sniff_ip *ip, struct sniff_tcp *tcp, mptcp_sf *msf, int re
 
 mptcp_sf* new_msf(struct sniff_ip *ip, struct sniff_tcp *tcp){
 	mptcp_sf *msf = (mptcp_sf*) exitMalloc(sizeof(mptcp_sf));
+	//TODO fill with 0
 	build_msf(ip,tcp,msf,DONOTREVERT,1);
 	return msf;
 }
 mptcp_sf* new_msf_revert(struct sniff_ip *ip, struct sniff_tcp *tcp){
 	mptcp_sf *msf = (mptcp_sf*) exitMalloc(sizeof(mptcp_sf));
+	//TODO fill with 0
 	build_msf(ip,tcp,msf,REVERT,1);
 	return msf;
 }

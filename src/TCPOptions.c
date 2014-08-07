@@ -56,7 +56,7 @@ int isIPv4(struct sniff_ethernet *ethernet){
 	return ntohs(ethernet->ether_type) == IPv4_ETHERTYPE;
 }
 int isIPVersionCorrect(struct sniff_ip *ip){
-	return IP_V(ip) == 4;
+	return IP_V(ip) == 4 || IP_V(ip) == 6;
 }
 int isTCP(struct sniff_ip *ip){
 	return ip->ip_p == 6;

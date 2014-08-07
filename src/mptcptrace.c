@@ -186,9 +186,25 @@ void handle_MPTCP_DSS(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp, struc
 		}
 	}
 }
-
+int get_ip_header_len(const u_char* packet, int offset){
+	if( IP_V((struct sniff_ip *) (packet + offset)) == 4 ){
+		if(isTCP((struct sniff_ip *) (packet + offset))){
+			return IP_HL((struct sniff_ip *) (packet + offset)) * 4;
+		}
+		else{
+			return -1;
+		}
+	}
+	else{ //ipv6
+		if(*(packet+offset+6)==6)
+			return 40;
+		else
+			return -1;
+	}
+}
 int mainLoop(){
 	int offset;
+	int ip_header_len; // not in the standard way...
 	pcap_t *handle;
 	const u_char   *packet;
 	struct pcap_pkthdr header;
@@ -204,19 +220,22 @@ int mainLoop(){
 	}
 	packet = pcap_next(handle, &header);
 	while (packet != NULL) {
-		if (isIPVersionCorrect((struct sniff_ip *) (packet + offset)) &&
-			isTCP((struct sniff_ip *) (packet + offset))) {
-				ip_packet = (struct sniff_ip *) (packet + offset);
-				tcp_segment=(struct sniff_tcp*) (packet + offset + IP_HL((struct sniff_ip *) (packet + offset)) * 4);
-				struct timeval ts;
-				if(isMPTCP_capable(tcp_segment))
-					updateListCapable(l,ip_packet,tcp_segment,lostSynCapable, header.ts);
+		if (isIPVersionCorrect((struct sniff_ip *) (packet + offset)) /*&&
+			isTCP((struct sniff_ip *) (packet + offset))*/) {
+				ip_header_len = get_ip_header_len(packet,offset);
+				if(ip_header_len > 0){
+					ip_packet = (struct sniff_ip *) (packet + offset);
+					tcp_segment=(struct sniff_tcp*) (packet + offset + ip_header_len);
+					struct timeval ts;
+					if(isMPTCP_capable(tcp_segment))
+						updateListCapable(l,ip_packet,tcp_segment,lostSynCapable, header.ts);
 
-				if(isMPTCP_join(tcp_segment))
-					updateListJoin(l,ip_packet,tcp_segment);
+					if(isMPTCP_join(tcp_segment))
+						updateListJoin(l,ip_packet,tcp_segment);
 
-				if(isMPTCP_dss(tcp_segment))
-					handle_MPTCP_DSS(l,ip_packet, tcp_segment, header.ts);
+					if(isMPTCP_dss(tcp_segment))
+						handle_MPTCP_DSS(l,ip_packet, tcp_segment, header.ts);
+				}
 		}
 		packet = pcap_next(handle, &header);
 	}

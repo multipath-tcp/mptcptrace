@@ -68,8 +68,9 @@ int compareInt(void *e1, void *e2){
 	return afterUI(*i1 , *i2) ? 1 : 0;
 }
 int sublfowsEqual(mptcp_sf* s1,  mptcp_sf* s2){
-	if(memcmp(&s1->ip_dst,&s2->ip_dst,sizeof(struct in_addr)) == 0 &&
-			memcmp(&s1->ip_src, &s2->ip_src,sizeof(struct in_addr)) == 0 &&
+	if(		s1->family == s2->family &&
+			memcmp(&s1->ip_dst,&s2->ip_dst, s1->family == AF_INET ? sizeof(struct in_addr) : sizeof(struct in6_addr)) == 0 &&
+			memcmp(&s1->ip_src, &s2->ip_src,s1->family == AF_INET ? sizeof(struct in_addr) : sizeof(struct in6_addr)) == 0 &&
 			memcmp(&s1->th_dport, &s2->th_dport,sizeof(u_short)) == 0 &&
 			memcmp(&s1->th_sport, &s2->th_sport,sizeof(u_short)) == 0)
 		return 1;

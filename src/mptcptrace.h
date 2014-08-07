@@ -93,10 +93,16 @@ struct sf_info{
 /*
  * A mptcp sublflow
  */
+typedef union {
+	struct in_addr	in;
+	struct in6_addr in6;
+} addr_storage;
+
 struct mptcp_sf{
+	sa_family_t	family;
 	int id;
 	mptcp_conn* mc_parent;
-	struct in_addr  ip_src, ip_dst;
+	addr_storage ip_src, ip_dst;
 	u_short th_sport;
 	u_short th_dport;
 	int state;
@@ -171,6 +177,8 @@ typedef u_int32_t tcp_seq;
 
 #define IP_HL(ip)		(((ip)->ip_vhl) & 0x0f)
 #define IP_V(ip)		(((ip)->ip_vhl) >> 4)
+
+#define IS_IPV4(ip)		( (((*(u_char*)ip)) >> 4) & 0x04)
 
 /* Ethernet header */
 struct sniff_ethernet {
