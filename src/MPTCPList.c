@@ -370,12 +370,24 @@ void updateListJoin(List* l,  struct sniff_ip *ip, struct sniff_tcp *tcp){
 
 void printMPTCPSublflow(void* element, int pos, void* fix, void* acc){
 	mptcp_sf *msf = (mptcp_sf*) element;
-	printf("\tSubflow %d with wscale : %d %d ",pos,msf->wscale[C2S], msf->wscale[S2C]);
+	char straddr[INET6_ADDRSTRLEN+1];
+
+	printf("\tSubflow %d with wscale : %d %d IPv%d ",pos,msf->wscale[C2S], msf->wscale[S2C], msf->family == AF_INET ? 4 : 6);
 	printf("sport %hu",ntohs(msf->th_sport));
-	printf(" dport %hu\n",ntohs(msf->th_dport));
+	printf(" dport %hu ",ntohs(msf->th_dport));
+	if(msf->family == AF_INET){
+		printf("saddr %s ", inet_ntoa(msf->ip_src.in));
+		printf("daddr %s \n", inet_ntoa(msf->ip_dst.in));
+	}
+	else{
+		inet_ntop(AF_INET6,&msf->ip_src.in6,straddr,INET6_ADDRSTRLEN+1);
+		printf("saddr %s ",straddr);
+		inet_ntop(AF_INET6,&msf->ip_dst.in6,straddr,INET6_ADDRSTRLEN+1);
+		printf("daddr %s \n",straddr);
+	}
 }
 void printMPTCPConnections(void* element, int pos, void* fix, void* acc){
-	printf("MPTCP connection %d\n",pos);
+	printf("MPTCP connection %d with id %d\n",pos,((mptcp_conn*)element)->id);
 	apply(((mptcp_conn*)element)->mptcp_sfs,printMPTCPSublflow,NULL,NULL);
 }
 void printAllConnections(List *l){

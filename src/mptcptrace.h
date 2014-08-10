@@ -178,7 +178,7 @@ typedef u_int32_t tcp_seq;
 #define IP_HL(ip)		(((ip)->ip_vhl) & 0x0f)
 #define IP_V(ip)		(((ip)->ip_vhl) >> 4)
 
-#define IS_IPV4(ip)		( (((*(u_char*)ip)) >> 4) & 0x04)
+#define IS_IPV4(ip)		( (((*(u_char*)ip)) >> 4) == 0x04)
 
 /* Ethernet header */
 struct sniff_ethernet {

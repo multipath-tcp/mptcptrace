@@ -196,6 +196,7 @@ int get_ip_header_len(const u_char* packet, int offset){
 		}
 	}
 	else{ //ipv6
+
 		if(*(packet+offset+6)==6)
 			return 40;
 		else

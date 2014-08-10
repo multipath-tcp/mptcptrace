@@ -697,7 +697,7 @@ void destroyWinFlight(void** graphData, MPTCPConnInfo *mci){
 void updateTCPUnack(struct sniff_ip *rawIP, struct sniff_tcp *rawTCP,mptcp_sf *msf, int way){
 	tcp_map *seq = (tcp_map*)exitMalloc(sizeof(tcp_map));
 	seq->start = TCP_SEQ(rawTCP);
-	seq->end = seq->start + ntohs(rawIP->ip_len) - 4*(IP_HL(rawIP)) - 4*(TH_OFF(rawTCP));
+	seq->end = seq->start + (IS_IPV4(rawIP) ? ntohs(rawIP->ip_len) - 4*(IP_HL(rawIP)) - 4*(TH_OFF(rawTCP)) : 40 );
 	int added;
 	Node *n;
 	//if(msf->tcpLastAck[TOGGLE(way)] == NULL || seq->start >= *(msf->tcpLastAck[TOGGLE(way)]))
