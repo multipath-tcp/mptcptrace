@@ -5,7 +5,7 @@ mptcptrace \- MPTCP connection analysis
 .B mptcptrace
 [options] \fB-f\fP \fIfilename\fP 
 .SH DESCRIPTION
-\fBCmptcptrace\fP is that enable the analysis of dump that contain MPTCP capable connections.
+\fBmptcptrace\fP is a tool that enable the analysis of dump that contains MPTCP capable connection(s).
 .SH OPTIONS
 The following options are supported:
 .TP
@@ -39,27 +39,27 @@ You have to specify the size of the table to make the moving average. Small numb
 Measures the MPTCP goodput. The red line is the average good put since the bbegining. The blue diamond represents the moving average.
 .TP
 \fB-S\fP
-TODO. Output statistics in a CSV format.
+Output statistics in a CSV format. The set of statistics is not yet well defined.
 .TP
 \fB-q\fP
 Specify the length of the queue that contains sequence that we have to keep in memory for reinjection checking. By default this option is set to 0 which means infinite queue. If you have very long trace, you may be forced to limit the size of the queue.
 .TP
 \fB-o\fP
-Specify the offset of the IP packet. Could be usefull if the top layer is unknown by the program. It currently recognize automatically ETHernet and Cooked. 
+Specify the offset of the IP packet. Could be usefull if the top layer is unknown by the program. It currently recognize automatically ETHernet and Cooked.
 .TP
 \fB-w\fP
 Select a writer to output the results. This option is not fully implemented.
 The default writer is xlot (0).
 .br
-\fB0    \fP Output xplot files.
+\fB0    \fP Output xplot files. (default)
 .br
-\fB1    \fP Output google chart files. No fully implemented. The main reason is the scability. Nevertheless can be used for small traces.
+\fB1    \fP Output google chart files. No fully implemented. The main reason is scability issues. Nevertheless can be used for small traces. For demo.
 .br
 \fB2    \fP Output csv files. Can be used to plot the information with other program or post-process the output. E.g. we used this output to generate Gnuplot graph on the web interface. We also use this output with R.
 
 .TP
 \fB-h\fP
-Print a short help and then exit. 
+Print a short help and then exit.
 .TP
 \fB-v\fP
 TODO
@@ -69,6 +69,6 @@ TODO
 .SH BUGS
 report to benjamin.hesmans@uclouvain.be
 .SH AUTHOR
-\fBBenjamin Hesmans\fP
+\fBBenjamin Hesmans\fP benjamin.hesmans@uclouvain.be
 .SH SEE ALSO
 tcptrace(1), xplot.org(1), gnuplot(1), R(1)
