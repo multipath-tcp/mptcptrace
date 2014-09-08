@@ -80,6 +80,10 @@ int parseArgs(int argc, char *argv[]){
 		   break;
 		case 'G':
 			gpInterv = atoi(optarg);
+			if(gpInterv <=1){
+				fprintf(stderr, "Specify the number of ACK to account for the bw mving avg. Should be at least 2.(%i)\n", gpInterv);
+				exit(0);
+			}
 			modules[GRAPH_GOODPUT].activated = ACTIVE_MODULE;
 		   break;
 		case 'w':

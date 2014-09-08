@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <time.h>
 #include <string.h>
+#include <math.h>
 #include "mptcptrace.h"
 #include "allocations.h"
 #include "MPTCPList.h"
@@ -153,8 +154,13 @@ void xpl_diamonduint(FILE *f, unsigned int x, unsigned int y, int color){
 }
 
 void xpl_diamondTimeDouble(FILE *f, struct timeval tsx, double y, int color){
-	fprintf(f,"%i\n",color % 8);
-	fprintf(f,"diamond %li.%06li %f\n",tsx.tv_sec, tsx.tv_usec,y);
+	if(y==INFINITY){
+		fprintf(stderr,"Avoid INFINITY...Is the bucket size for bw calculation too small ? (%i)\n",gpInterv);
+	}
+	else{
+		fprintf(f,"%i\n",color % 8);
+		fprintf(f,"diamond %li.%06li %f\n",tsx.tv_sec, tsx.tv_usec,y);
+	}
 	//TODO google api
 	//fprintf(f,"[ new Date(%f), %f ],\n",tsx.tv_sec * 1000.0 + tsx.tv_usec / 1000.0 ,y);
 }
