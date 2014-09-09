@@ -130,9 +130,18 @@ void add_MPTCP_conn_syn(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp){
 	else{
 		mptcp_conn *mc = (mptcp_conn*) exitMalloc(sizeof(mptcp_conn));
 		MPTCPConnInfo *mci = (MPTCPConnInfo *) exitMalloc(sizeof(MPTCPConnInfo));
+
 		mc->mci = mci;
 		mc->id = l->size;
 		mc->mci->mc = mc;
+
+		if(add_addr){
+			char str[42];
+			sprintf(str,"add_addr_%d.csv",mc->id);
+			mc->addAddr=fopen(str,"w");
+		}
+
+
 		for(i=0;i<MAX_GRAPH;i++) if(modules[i].activated)  modules[i].initModule(&mc->graphdata[i],mc->mci);
 		for(i=0;i<TCP_MAX_GRAPH;i++) if(tcpModules[i].activated) tcpModules[i].destroyModule(&mc->graphdata[i],mc->mci);
 		u_char* mpcapa = first_MPTCP_sub(tcp,MPTCP_SUB_CAPABLE);
@@ -184,6 +193,13 @@ void add_MPTCP_conn_thirdAck(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp
 			mc->mci = mci;
 			mc->id = l->size;
 			mc->mci->mc = mc;
+
+			if(add_addr){
+				char str[42];
+				sprintf(str,"add_addr_%d.csv",mc->id);
+				mc->addAddr=fopen(str,"w");
+			}
+
 			for(i=0;i<MAX_GRAPH;i++) if(modules[i].activated)  modules[i].initModule(&mc->graphdata[i],mc->mci);
 			for(i=0;i<TCP_MAX_GRAPH;i++) if(tcpModules[i].activated) tcpModules[i].destroyModule(&mc->graphdata[i],mc->mci);
 			u_char* mpcapa = first_MPTCP_sub(tcp,MPTCP_SUB_CAPABLE);

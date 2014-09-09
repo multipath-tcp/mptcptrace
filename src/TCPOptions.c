@@ -82,3 +82,7 @@ u_char* isMPTCP_dss(struct sniff_tcp *tcp){
 	return first_MPTCP_sub(tcp,MPTCP_SUB_DSS);
 }
 
+u_char* isMPTCP_addAddr(struct sniff_tcp *tcp){
+	return first_MPTCP_sub(tcp,MPTCP_ADD_ADDR);
+}
+

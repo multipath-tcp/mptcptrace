@@ -52,6 +52,7 @@ void freecon(void *element){
 	destroyList(con->mci->unacked[C2S]->l);
 	destroyList(con->mci->unacked[S2C]->l);
 	BOTH( free LP con->mci->lastack, RP)
+	if(add_addr) fclose(con->addAddr);
 	free(con->mci->unacked[C2S]);
 	free(con->mci->unacked[S2C]);
 	free(con->mci->firstSeq[C2S]);

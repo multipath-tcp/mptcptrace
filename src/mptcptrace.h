@@ -31,6 +31,7 @@
 #define MPTCP_SUB_CAPABLE	0
 #define MPTCP_SUB_JOIN		1
 #define MPTCP_SUB_DSS		2
+#define MPTCP_ADD_ADDR		3
 
 #define TCP_OPT_WSCALE		3
 
@@ -130,6 +131,8 @@ struct mptcp_conn{
 	void* graphdata[MAX_GRAPH];
 	void* tcpgraphdata[TCP_MAX_GRAPH];
 	MPTCPConnInfo *mci;
+
+	FILE* addAddr;
 };
 
 struct mptcp_map{
@@ -252,5 +255,6 @@ struct sniff_tcp {
 #define INITBOTH(var,val,type) BOTH3(var,= (type *) exitMalloc(sizeof(type)) ; *var,=val)
 
 extern int maxSeqQueueLength;
+extern int add_addr;
 
 #endif /* MPTCPTRACE_H_ */

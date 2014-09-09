@@ -32,6 +32,7 @@ int Vian = 0;
 int maxSeqQueueLength = 0; // back log we want to keep to check for reinjection, if 0, infinite back log.
 int flight_select=0;
 int rtt_select=0;
+int add_addr = 0;
 
 void printHelp(){
 	printf("mptcptrace help :\n");
@@ -50,8 +51,11 @@ void write_info(){
 
 int parseArgs(int argc, char *argv[]){
 	int c;
-	while ((c = getopt (argc, argv, "haG:sSr:f:o:F:w:q:")) != -1)
+	while ((c = getopt (argc, argv, "haG:sASr:f:o:F:w:q:")) != -1)
 		switch (c){
+		case 'A':
+			add_addr=1;
+			break;
 		case 's':
 			modules[GRAPH_SEQUENCE].activated = ACTIVE_MODULE;
 			break;
@@ -141,6 +145,26 @@ int openFile(int *offset, pcap_t **handle){
 		}
 	}
 	return 0;
+}
+void handle_MPTCP_ADDADDR(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp, struct timeval ts){
+	int way;
+
+	mptcp_sf *msf = getSubflowFromIPTCP(l,ip,tcp,&way);
+	if(msf==NULL)
+		return;
+
+	char straddr[INET6_ADDRSTRLEN+1];
+	u_char* addrOpt = isMPTCP_addAddr(tcp);
+	int ip_version = (*(addrOpt+2)) & 0x0f;
+
+	if (ip_version == 4){
+		inet_ntop(AF_INET,addrOpt+4,straddr,INET6_ADDRSTRLEN+1);
+		fprintf(msf->mc_parent->addAddr,"%i,%s\n",way, straddr);
+	}
+	else{
+		inet_ntop(AF_INET6,addrOpt+4,straddr,INET6_ADDRSTRLEN+1);
+		fprintf(msf->mc_parent->addAddr,"%i,%s\n",way, straddr);
+	}
 }
 
 void handle_MPTCP_DSS(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp, struct timeval ts){
@@ -240,6 +264,9 @@ int mainLoop(){
 
 					if(isMPTCP_dss(tcp_segment))
 						handle_MPTCP_DSS(l,ip_packet, tcp_segment, header.ts);
+
+					if(isMPTCP_addAddr(tcp_segment) && add_addr)
+						handle_MPTCP_ADDADDR(l,ip_packet,tcp_segment,header.ts);
 				}
 		}
 		packet = pcap_next(handle, &header);
