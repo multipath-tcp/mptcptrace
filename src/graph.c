@@ -138,7 +138,7 @@ void xpl_verticalLine(FILE* f, unsigned int x, unsigned int y, unsigned long h, 
 	//TODO
 }
 
-void xpl_verticalLineTime(FILE* f, struct timeval tsx, unsigned int y, unsigned int h, int color){
+void xpl_verticalLineTime(FILE* f, struct timeval tsx, unsigned int y, unsigned int h, int color, int reinject){
 	fprintf(f,"%i\n",color % 8);
 	fprintf(f,"line %li.%06li %u %li.%06li %u \n",tsx.tv_sec, tsx.tv_usec,y,tsx.tv_sec, tsx.tv_usec,y+h);
 }
@@ -198,7 +198,7 @@ void gg_verticalLine(FILE* f, unsigned int x, unsigned int y, unsigned long h, i
 	//TODO
 }
 
-void gg_verticalLineTime(FILE* f, struct timeval tsx, unsigned int y, unsigned int h, int color){
+void gg_verticalLineTime(FILE* f, struct timeval tsx, unsigned int y, unsigned int h, int color, int reinject){
 	//fprintf(f,"%i\n",color);
 	//fprintf(f,"line %li.%06li %u %li.%06li %u \n",tsx.tv_sec, tsx.tv_usec,y,tsx.tv_sec, tsx.tv_usec,y+h);
 	fprintf(f,"row = data.addRow();\n");
@@ -302,11 +302,11 @@ FILE* gg_openGraphFile(char *name, int id, int way){
 }
 
 void csv_verticalLine(FILE* f, unsigned int x, unsigned int y, unsigned long h, int color){}
-void csv_verticalLineTime(FILE* f, struct timeval tsx, unsigned int y, unsigned int h, int color){
-	fprintf(f,"%li.%06li,%u,%i,1,%u,1\n",tsx.tv_sec, tsx.tv_usec,y,color,y+h);
+void csv_verticalLineTime(FILE* f, struct timeval tsx, unsigned int y, unsigned int h, int color, int reinject){
+	fprintf(f,"%li.%06li,%u,%i,1,%u,%i\n",tsx.tv_sec, tsx.tv_usec,y,color,y+h,reinject);
 }
 void csv_diamondTime(FILE *f, struct timeval tsx, unsigned int y, int color){
-	fprintf(f,"%li.%06li,%u,%i,0,0\n",tsx.tv_sec, tsx.tv_usec,y,color);
+	fprintf(f,"%li.%06li,%u,%i,0,0,-1\n",tsx.tv_sec, tsx.tv_usec,y,color);
 }
 void csv_diamondTimeDouble(FILE *f, struct timeval tsx, double y, int color){
 	fprintf(f,"%li.%06li,%f,%i,0,0\n",tsx.tv_sec, tsx.tv_usec,y,color);
@@ -438,7 +438,7 @@ void seqGrahSeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq, void* g
 		Boris[Vian].writeTextTime(data->graph[way],seq->ts,SEQ_MAP_END(seq),"R",reinject+1);
 		data->reinject[way] += SEQ_MAP_LEN(seq);
 	}
-	Boris[Vian].writeTimeVerticalLine(data->graph[way],seq->ts,SEQ_MAP_START(seq),SEQ_MAP_LEN(seq),(msf->id+1));
+	Boris[Vian].writeTimeVerticalLine(data->graph[way],seq->ts,SEQ_MAP_START(seq),SEQ_MAP_LEN(seq),(msf->id+1),reinject);
 }
 
 void seqGrahAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack, void* graphData, MPTCPConnInfo *mi, int way){
@@ -616,7 +616,7 @@ void sumFlight2(void* element, int pos, void *fix, void *acc){
 		funa = (tcp_map*) msf->tcpUnacked[*way]->l->head->element;
 		luna = (tcp_map*) msf->tcpUnacked[*way]->l->tail->element;
 		toAdd =  (luna->end - funa->start);
-		Boris[Vian].writeTimeVerticalLine(data->graph2[*way],*ts,*sum,toAdd,msf->id);
+		Boris[Vian].writeTimeVerticalLine(data->graph2[*way],*ts,*sum,toAdd,msf->id,-1);
 		*sum = (*sum) + toAdd;
 	}
 }

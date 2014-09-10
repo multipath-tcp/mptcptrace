@@ -65,7 +65,7 @@ typedef struct seriesData seriesData;
  */
 
 void xpl_verticalLine(FILE* f, unsigned int x, unsigned int y, unsigned long h, int color);
-void xpl_verticalLineTime(FILE* f, struct timeval tsx, unsigned int y, unsigned int h, int color);
+void xpl_verticalLineTime(FILE* f, struct timeval tsx, unsigned int y, unsigned int h, int color, int reinject);
 void xpl_diamondTime(FILE *f, struct timeval tsx, unsigned int y, int color);
 void xpl_diamondTimeDouble(FILE *f, struct timeval tsx, double y, int color);
 void xpl_textTime(FILE *f, struct timeval tsx, unsigned int y, char* text, int color);
@@ -75,7 +75,7 @@ FILE* xpl_openGraphFile(char *name, int id, int way);
 void xpl_writeSeries(FILE *f, char *type, char *name);
 
 void gg_verticalLine(FILE* f, unsigned int x, unsigned int y, unsigned long h, int color);
-void gg_verticalLineTime(FILE* f, struct timeval tsx, unsigned int y, unsigned int h, int color);
+void gg_verticalLineTime(FILE* f, struct timeval tsx, unsigned int y, unsigned int h, int color, int reinject);
 void gg_diamondTime(FILE *f, struct timeval tsx, unsigned int y, int color);
 void gg_diamondTimeDouble(FILE *f, struct timeval tsx, double y, int color);
 void gg_textTime(FILE *f, struct timeval tsx, unsigned int y, char* text, int color);
@@ -85,7 +85,7 @@ FILE* gg_openGraphFile(char *name, int id, int way);
 void gg_writeSeries(FILE *f, char *type, char *name);
 
 void csv_verticalLine(FILE* f, unsigned int x, unsigned int y, unsigned long h, int color);
-void csv_verticalLineTime(FILE* f, struct timeval tsx, unsigned int y, unsigned int h, int color);
+void csv_verticalLineTime(FILE* f, struct timeval tsx, unsigned int y, unsigned int h, int color, int reinject);
 void csv_diamondTime(FILE *f, struct timeval tsx, unsigned int y, int color);
 void csv_diamondTimeDouble(FILE *f, struct timeval tsx, double y, int color);
 void csv_textTime(FILE *f, struct timeval tsx, unsigned int y, char* text, int color);
@@ -221,7 +221,7 @@ struct Writer{
 	void (*writeHeader)(FILE *f,char *way, char* title, char *xtype, char *ytype, char * xlabel, char *ylabel);
 	void (*writeTimeDot)(FILE *f, struct timeval tsx, unsigned int y, int color);
 	void (*writeTimeDotDouble)(FILE *f, struct timeval tsx, double y, int color);
-	void (*writeTimeVerticalLine) (FILE* f, struct timeval tsx, unsigned int y, unsigned int h, int color);
+	void (*writeTimeVerticalLine) (FILE* f, struct timeval tsx, unsigned int y, unsigned int h, int color, int reinject);
 	void (*writeTimeVerticalLineDouble) (FILE* f, struct timeval tsx, unsigned int y, double h, int color);
 	void (*writeTextTime) (FILE *f, struct timeval tsx, unsigned int y, char* text, int color);
 	void (*writeFooter)(FILE *f,char *way, char* title, char *xtype, char *ytype, char * xlabel, char *ylabel);
