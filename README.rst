@@ -107,3 +107,94 @@ You can also use use the CSV format to easely convert some ``xplot.org`` graphs,
    :figwidth: 50%
 
 The output is available in ``res/pics`` in eps format.
+
+Man page
+========
+
+.. code-block::
+
+        MPTCPTRACE(1)                  mptcptrace Manual                 MPTCPTRACE(1)
+
+
+
+        NAME
+               mptcptrace - MPTCP connection analysis
+
+        SYNOPSIS
+               mptcptrace [options] -f filename
+
+        DESCRIPTION
+               mptcptrace  is  a  tool  that enable the analysis of dump that contains
+               MPTCP capable connection(s).
+
+        OPTIONS
+               The following options are supported:
+
+               -s     MPTCP sequence number graph
+
+               -a     MPTCP ack size graph
+
+               -r     RTT at MPTCP level, X axis may be selected :
+                      1     x is timestamp of the ACK arrival
+                      2     x is timestamp of the SEQ departure
+                      4     x is SEQ numbers
+                      To get more than one graph, just add the  value.  E.g.  6  would
+                      give the second and the third graph.
+
+               -F     MPTCP  Flight  size  graphs.  You have two kinds of MPTCP flight
+                      size graphs.
+                      1     Shows the receive window, the MPTCP  flightsize,  and  the
+                      sum of the TCP (sublfow) flight size.
+                      2     Show the flight size per subflow.
+                      To  get more than one graph, just add the value.  -G You have to
+                      specify the size of the table to make the moving average.  Small
+                      number  will  be  closed to instantaneous goodput but may be too
+                      variable. Big numbers will lead to a smoother graph but may  not
+                      reflect  some holes in the connection.  Measures the MPTCP good-
+                      put. The red line is the average good put since  the  bbegining.
+                      The blue diamond represents the moving average.
+
+               -S     Output  statistics in a CSV format. The set of statistics is not
+                      yet well defined.
+
+               -q     Specify the length of the queue that contains sequence  that  we
+                      have to keep in memory for reinjection checking. By default this
+                      option is set to 0 which means infinite queue. If you have  very
+                      long trace, you may be forced to limit the size of the queue.
+
+               -o     Specify the offset of the IP packet. Could be usefull if the top
+                      layer is unknown by the program. It currently recognize automat-
+                      ically ETHernet and Cooked.
+
+               -w     Select  a writer to output the results. This option is not fully
+                      implemented.  The default writer is xlot (0).
+                      0     Output xplot files. (default)
+                      1     Output google chart files. No fully implemented. The  main
+                      reason  is  scability issues. Nevertheless can be used for small
+                      traces. For demo.
+                      2     Output csv files. Can be used to plot the information with
+                      other program or post-process the output. E.g. we used this out-
+                      put to generate Gnuplot graph on the web interface. We also  use
+                      this output with R.
+
+
+               -h     Print a short help and then exit.
+
+               -v     TODO
+
+        LICENCE
+               TODO
+
+        BUGS
+               report to benjamin.hesmans@uclouvain.be
+
+        AUTHOR
+               Benjamin Hesmans benjamin.hesmans@uclouvain.be
+
+        SEE ALSO
+               tcptrace(1), xplot.org(1), gnuplot(1), R(1)
+
+
+
+        Version 0.1                       May 7, 2014                    MPTCPTRACE(1)
+
