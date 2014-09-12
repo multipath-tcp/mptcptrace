@@ -104,6 +104,6 @@ You can also use use the CSV format to easely convert some ``xplot.org`` graphs,
 .. figure:: http://mptcptrace.multipath-tcp.org/res/win.png
    :width: 100 %
    :align: center
-   :figwidth: 100%
+   :figwidth: 50%
 
 The output is available in ``res/pics`` in eps format.
