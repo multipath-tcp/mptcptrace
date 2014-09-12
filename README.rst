@@ -81,6 +81,14 @@ One quick GNU plot script example can be found in ``res/scripts/gnuplot/seq_sf``
         $ gnuplot -e "maxsf=16" seq_sf < c2s_seq_0.csv > seq_sf.eps
         $ evince seq_sf.eps
 
+.. figure:: res/pics/seq_sf.png
+   :width: 100 %
+   :align: center
+   :figwidth: 80%
+
+   Mappings used by subflows.
+
+
 The output of the example is available in ``res/pics``. This graph shows the MPTCP mappings that pass trough subflows. In red you can also see, the mappings that cause reinjections, and in green on which sublfows they have been reinjected.
 
 You can also use use the CSV format to easely convert some ``xplot.org`` graphs, for instance, we use the ``R`` script in ``res/scripts/R/`` to translate the flight graph.
