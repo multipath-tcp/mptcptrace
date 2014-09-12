@@ -1,0 +1,26 @@
+#!/usr/bin/Rscript
+
+args <- commandArgs(TRUE)
+
+s=read.csv(args[1])
+
+d=subset(s,met==1)
+dd=subset(s,met==2)
+ddd=subset(s,met==3)
+
+if( length(args)==1){
+        X11()
+} else {
+        postscript(args[2], horizontal = FALSE, onefile = FALSE, paper = "special", height=3, width=3)
+}
+par(mar=c(4,4,1,1))
+plot((d$ts-min(d$ts)),d$val/1000,col="green",type="l",main='',ylab="Byte (kB)",xlab="Time (s)")
+points(dd$ts-min(dd$ts),dd$val/1000,col="orange",type="l")
+points(ddd$ts-min(ddd$ts),ddd$val/1000,col="red",type="l")
+
+fil <- readLines(con="stdin", 1)
+
+if( length(args)==2){
+        dev.off()
+}
+
