@@ -83,7 +83,7 @@ One quick GNU plot script example can be found in ``res/scripts/gnuplot/seq_sf``
 
 |
 
-.. figure:: raw/d15cbf9ba8c22b9d012e4b97ed4310347bd90c0b/res/pics/seq_sf.png 
+.. figure:: http://mptcptrace.multipath-tcp.org/res/seq_sf.png
    :width: 100 %
    :align: center
    :figwidth: 100%
@@ -101,7 +101,7 @@ You can also use use the CSV format to easely convert some ``xplot.org`` graphs,
 
 |
 
-.. figure:: raw/e7bfb87f53e14f20ded605ac6f4e330fe0b3a097/res/pics/win.png
+.. figure:: http://mptcptrace.multipath-tcp.org/res/win.png
    :width: 100 %
    :align: center
    :figwidth: 100%
