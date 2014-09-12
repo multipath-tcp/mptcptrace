@@ -81,7 +81,7 @@ One quick GNU plot script example can be found in ``res/scripts/gnuplot/seq_sf``
         $ gnuplot -e "maxsf=16" seq_sf < c2s_seq_0.csv > seq_sf.eps
         $ evince seq_sf.eps
 
-.. figure:: res/pics/seq_sf.png
+.. figure:: raw/d15cbf9ba8c22b9d012e4b97ed4310347bd90c0b/res/pics/seq_sf.png 
    :width: 100 %
    :align: center
    :figwidth: 80%
