@@ -75,18 +75,20 @@ Will output MPTCP sequence inforamtions in a CSV format.
 
 One quick GNU plot script example can be found in ``res/scripts/gnuplot/seq_sf``
 
+|
+
 .. code-block:: console
         
         $ mptcptrace -f myDump.pcap -s -w 2
         $ gnuplot -e "maxsf=16" seq_sf < c2s_seq_0.csv > seq_sf.eps
         $ evince seq_sf.eps
 
+|
+
 .. figure:: raw/d15cbf9ba8c22b9d012e4b97ed4310347bd90c0b/res/pics/seq_sf.png 
    :width: 100 %
    :align: center
-   :figwidth: 80%
-
-   Mappings used by subflows.
+   :figwidth: 100%
 
 
 The output of the example is available in ``res/pics``. This graph shows the MPTCP mappings that pass trough subflows. In red you can also see, the mappings that cause reinjections, and in green on which sublfows they have been reinjected.
