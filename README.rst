@@ -75,8 +75,6 @@ Will output MPTCP sequence inforamtions in a CSV format.
 
 One quick GNU plot script example can be found in ``res/scripts/gnuplot/seq_sf``
 
-|
-
 .. code-block:: console
         
         $ mptcptrace -f myDump.pcap -s -w 2
@@ -91,7 +89,7 @@ One quick GNU plot script example can be found in ``res/scripts/gnuplot/seq_sf``
    :figwidth: 100%
 
 
-The output of the example is available in ``res/pics``. This graph shows the MPTCP mappings that pass trough subflows. In red you can also see, the mappings that cause reinjections, and in green on which sublfows they have been reinjected.
+The output of the example is available in ``res/pics`` in eps format. This graph shows the MPTCP mappings that pass trough subflows. In red you can also see, the mappings that cause reinjections, and in green on which sublfows they have been reinjected.
 
 You can also use use the CSV format to easely convert some ``xplot.org`` graphs, for instance, we use the ``R`` script in ``res/scripts/R/`` to translate the flight graph.
 
@@ -101,4 +99,11 @@ You can also use use the CSV format to easely convert some ``xplot.org`` graphs,
         $ // prepend ts,val,met,DONT,USE,ME to c2s_flight_0.csv
         $ ./flightR c2s_flight_0.csv win.eps
 
-The output is available in ``res/pics``.
+|
+
+.. figure:: raw/e7bfb87f53e14f20ded605ac6f4e330fe0b3a097/res/pics/win.png
+   :width: 100 %
+   :align: center
+   :figwidth: 100%
+
+The output is available in ``res/pics`` in eps format.
