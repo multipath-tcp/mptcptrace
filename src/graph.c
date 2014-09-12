@@ -434,8 +434,10 @@ void seqGrahSeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq, void* g
 	//	printf("ahahahhahhahahahahhahaahahhhahahahhahahhahah\n");
 
 	if( reinject >= 0){
+		//to unify.. may lead to mistakes at some point.
+		reinject = reinject + 1;
 		data->reinjectCausedBy[way][orig->msf->id] += 1;
-		Boris[Vian].writeTextTime(data->graph[way],seq->ts,SEQ_MAP_END(seq),"R",reinject+1);
+		Boris[Vian].writeTextTime(data->graph[way],seq->ts,SEQ_MAP_END(seq),"R",reinject);
 		data->reinject[way] += SEQ_MAP_LEN(seq);
 	}
 	Boris[Vian].writeTimeVerticalLine(data->graph[way],seq->ts,SEQ_MAP_START(seq),SEQ_MAP_LEN(seq),(msf->id+1),reinject);
