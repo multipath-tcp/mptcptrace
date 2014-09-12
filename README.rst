@@ -4,6 +4,32 @@ mptctrace
 
 mptcptrace analyze MPTCP traces
 
+Reference
+=========
+
+If you plan to use this tool in a publication, please use the following reference:
+
+.. code-block:: console
+
+        @inproceedings{Hesmans:2014:TMT:2619239.2631453,
+         author = {Hesmans, Benjamin and Bonaventure, Olivier},
+         title = {Tracing Multipath TCP Connections},
+         booktitle = {Proceedings of the 2014 ACM Conference on SIGCOMM},
+         series = {SIGCOMM '14},
+         year = {2014},
+         isbn = {978-1-4503-2836-4},
+         location = {Chicago, Illinois, USA},
+         pages = {361--362},
+         numpages = {2},
+         url = {http://doi.acm.org/10.1145/2619239.2631453},
+         doi = {10.1145/2619239.2631453},
+         acmid = {2631453},
+         publisher = {ACM},
+         address = {New York, NY, USA},
+         keywords = {Multipath TCP},
+        } 
+
+
 Building
 ========
 
