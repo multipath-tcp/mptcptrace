@@ -32,6 +32,7 @@
 #define MPTCP_SUB_JOIN		1
 #define MPTCP_SUB_DSS		2
 #define MPTCP_ADD_ADDR		3
+#define MPTCP_RM_ADDR		4
 
 #define TCP_OPT_WSCALE		3
 
@@ -133,6 +134,7 @@ struct mptcp_conn{
 	MPTCPConnInfo *mci;
 
 	FILE* addAddr;
+	FILE* rmAddr;
 };
 
 struct mptcp_map{
@@ -256,5 +258,6 @@ struct sniff_tcp {
 
 extern int maxSeqQueueLength;
 extern int add_addr;
+extern int rm_addr;
 
 #endif /* MPTCPTRACE_H_ */

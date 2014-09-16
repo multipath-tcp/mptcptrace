@@ -86,3 +86,7 @@ u_char* isMPTCP_addAddr(struct sniff_tcp *tcp){
 	return first_MPTCP_sub(tcp,MPTCP_ADD_ADDR);
 }
 
+u_char* isMPTCP_rmAddr(struct sniff_tcp *tcp){
+	return first_MPTCP_sub(tcp,MPTCP_RM_ADDR);
+}
+

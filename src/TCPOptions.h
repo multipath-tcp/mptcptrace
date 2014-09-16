@@ -24,5 +24,6 @@ u_char* isMPTCP_capable(struct sniff_tcp *tcp);
 u_char* isMPTCP_join(struct sniff_tcp *tcp);
 u_char* isMPTCP_dss(struct sniff_tcp *tcp);
 u_char* isMPTCP_addAddr(struct sniff_tcp *tcp);
+u_char* isMPTCP_rmAddr(struct sniff_tcp *tcp);
 
 #endif /* TCPOPTIONS_H_ */
