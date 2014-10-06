@@ -926,7 +926,7 @@ void destroyWFS(void** graphData, MPTCPConnInfo *mci){
 	writeStatsD(wfsData->f,"conTime",mci->mc->id,tmp.tv_sec + tmp.tv_usec / 1000000.0,tmp.tv_sec + tmp.tv_usec / 1000000.0 );
 	writeStats(wfsData->f,"seqAcked",mci->mc->id,ACK_MAP(mci->lastack[TOGGLE(C2S)]) - SEQ_MAP_START(mci->firstSeq[C2S]),ACK_MAP(mci->lastack[TOGGLE(S2C)]) - SEQ_MAP_START(mci->firstSeq[S2C]));
 	if(modules[GRAPH_SEQUENCE].activated == ACTIVE_MODULE){
-		writeStats(wfsData->f,"reinjected",mci->mc->id,sData->reinject[C2S],sData->reinject[S2C]);
+		writeStats(wfsData->f,"bytesReinjected",mci->mc->id,sData->reinject[C2S],sData->reinject[S2C]);
 		writeStatsD(wfsData->f,"precentReinjected",mci->mc->id,sData->reinject[C2S]*1.0/(ACK_MAP(mci->lastack[TOGGLE(C2S)]) - SEQ_MAP_START(mci->firstSeq[C2S])) ,
 															   sData->reinject[S2C]*1.0/(ACK_MAP(mci->lastack[TOGGLE(S2C)]) - SEQ_MAP_START(mci->firstSeq[S2C])) );
 		for(i=0;i<MAX_SF;i++){
