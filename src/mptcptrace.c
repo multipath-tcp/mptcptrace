@@ -129,7 +129,7 @@ int openFile(int *offset, pcap_t **handle){
 		return (2);
 	}
 	if(offset_opt > -1){
-		fprintf(stderr,"Offset by hand ... %d \n",offset_opt);
+		fprintf(stderr,"Offset by hand: skipping %d bytes to get to the ip header\n",offset_opt);
 		*offset=offset_opt;
 	}
 	else{
@@ -144,7 +144,7 @@ int openFile(int *offset, pcap_t **handle){
 			*offset = 16;
 			break;
 		default:
-			fprintf(stderr,"unknown encapsulation type, please use option -o to precise the offset to find the ip header...\n");
+			fprintf(stderr,"Unknown encapsulation type, please use option -o to precise the offset (bytes) to find the ip header...\n");
 			return 2;
 		}
 	}
