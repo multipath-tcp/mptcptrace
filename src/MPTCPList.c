@@ -67,7 +67,7 @@ int compareInt(void *e1, void *e2){
 	if(beforeUI(*i1 ,*i2)) return -1;
 	return afterUI(*i1 , *i2) ? 1 : 0;
 }
-int sublfowsEqual(mptcp_sf* s1,  mptcp_sf* s2){
+int subflowsEqual(mptcp_sf* s1,  mptcp_sf* s2){
 	if(		s1->family == s2->family &&
 			memcmp(&s1->ip_dst,&s2->ip_dst, s1->family == AF_INET ? sizeof(struct in_addr) : sizeof(struct in6_addr)) == 0 &&
 			memcmp(&s1->ip_src, &s2->ip_src,s1->family == AF_INET ? sizeof(struct in_addr) : sizeof(struct in6_addr)) == 0 &&
@@ -77,10 +77,10 @@ int sublfowsEqual(mptcp_sf* s1,  mptcp_sf* s2){
 	return 0;
 }
 
-int sublfowsEqualWrapper(void* s1, int pos, void* s2, void* acc){
+int subflowsEqualWrapper(void* s1, int pos, void* s2, void* acc){
 	mptcp_sf *sf1 = (mptcp_sf*) s1;
 	mptcp_sf *sf2 = (mptcp_sf*) s2;
-	return sublfowsEqual(s1,s2);
+	return subflowsEqual(s1,s2);
 }
 int searchMPTCPConnection(void* mc, int pos, void* searchFun, void *acc){
 	int (*s)(void*, int, void*, void*) = (int (*)(void*, int, void*, void*)) searchFun;
@@ -95,7 +95,7 @@ mptcp_sf* getSubflow(List *l,mptcp_sf *msf){
 	toFindRes acc;
 	acc.toFind = msf;
 	acc.result = NULL;
-	search(l,searchMPTCPConnection,sublfowsEqualWrapper,&acc);
+	search(l,searchMPTCPConnection,subflowsEqualWrapper,&acc);
 	return (mptcp_sf*) acc.result;
 }
 
@@ -186,7 +186,7 @@ void add_MPTCP_conn_thirdAck(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp
 	msf = getSubflow(l,&msfs);
 	if(msf==NULL){
 		fprintf(stderr,"------------------------syn lost, looking to recover...\n");
-		msf = search(lostSynCapable,sublfowsEqualWrapper,&msfs,NULL);
+		msf = search(lostSynCapable,subflowsEqualWrapper,&msfs,NULL);
 		if(msf != NULL){
 			fprintf(stderr,"Find him in the lost list...\n");
 			//consider the same scale...
@@ -391,7 +391,7 @@ void updateListJoin(List* l,  struct sniff_ip *ip, struct sniff_tcp *tcp){
 	}
 }
 
-void printMPTCPSublflow(void* element, int pos, void* fix, void* acc){
+void printMPTCPSubflow(void* element, int pos, void* fix, void* acc){
 	mptcp_sf *msf = (mptcp_sf*) element;
 	char straddr[INET6_ADDRSTRLEN+1];
 
@@ -411,7 +411,7 @@ void printMPTCPSublflow(void* element, int pos, void* fix, void* acc){
 }
 void printMPTCPConnections(void* element, int pos, void* fix, void* acc){
 	printf("MPTCP connection %d with id %d\n",pos,((mptcp_conn*)element)->id);
-	apply(((mptcp_conn*)element)->mptcp_sfs,printMPTCPSublflow,NULL,NULL);
+	apply(((mptcp_conn*)element)->mptcp_sfs,printMPTCPSubflow,NULL,NULL);
 }
 void printAllConnections(List *l){
 	apply(l,printMPTCPConnections,NULL,NULL);
