@@ -101,8 +101,8 @@ void destroySeq(void** graphData, MPTCPConnInfo *mci);
 void handleNewSFSeq(mptcp_sf *msf, void* graphData, MPTCPConnInfo *mi);
 
 void initAS(void** graphData, MPTCPConnInfo *mci);
-void asGrahSeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq,  void* graphData, MPTCPConnInfo *mi, int way);
-void asGrahAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack,  void* graphData, MPTCPConnInfo *mi, int way);
+void asGraphSeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq,  void* graphData, MPTCPConnInfo *mi, int way);
+void asGraphAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack,  void* graphData, MPTCPConnInfo *mi, int way);
 void destroyAS(void** graphData, MPTCPConnInfo *mci);
 
 void initCI(void** graphData, MPTCPConnInfo *mci);

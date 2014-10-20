@@ -62,8 +62,8 @@ graphModule modules[]={
 		UNACTIVE_MODULE,
 		"MPTCP Ack size",
 		initAS,
-		asGrahSeq,
-		asGrahAck,
+		asGraphSeq,
+		asGraphAck,
 		destroyAS,
 		NULL
 		},
@@ -959,10 +959,10 @@ void initAS(void** graphData, MPTCPConnInfo *mci){
 	Boris[Vian].writeHeader(data->graph[S2C],wayString[S2C],"MPTCP Ack size",TIMEVAL,DOUBLE,LABELTIME,"Ack size");
 	Boris[Vian].writeHeader(data->graph[C2S],wayString[C2S],"MPTCP Ack size",TIMEVAL,DOUBLE,LABELTIME,"Ack size");
 }
-void asGrahSeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq,  void* graphData, MPTCPConnInfo *mi, int way){
+void asGraphSeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq,  void* graphData, MPTCPConnInfo *mi, int way){
 
 }
-void asGrahAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack,  void* graphData, MPTCPConnInfo *mi, int way){
+void asGraphAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack,  void* graphData, MPTCPConnInfo *mi, int way){
 	asData *data = ((asData*) graphData);
 	Boris[Vian].writeTimeDot(data->graph[TOGGLE(way)],ack->ts,mi->lastAckSize[way],msf->id + 1 );
 }
