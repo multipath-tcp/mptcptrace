@@ -1,6 +1,15 @@
 AC_INIT([mptcptrace], [1.0], [benjamin.hesmans@uclouvain.be])
 AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE([foreign -Wall -Werror])
+
+AC_MSG_CHECKING([pkg-config])
+if test m4_ifdef([PKG_CHECK_MODULES], [yes], [no]) == yes; then
+	AC_MSG_RESULT([yes]);
+else
+	AC_MSG_RESULT([no]);
+	AC_MSG_ERROR([You need pkg-config])
+fi
+
 PKG_CHECK_MODULES([CHECK], [check >= 0.9.4])
 PKG_CHECK_MODULES([CRYPTO], [libcrypto])
 AC_SUBST(CRYPTO_CFLAGS)
