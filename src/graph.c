@@ -766,6 +766,8 @@ void initBW(void** graphData, MPTCPConnInfo *mci){
 	Boris[Vian].writeHeader(data->graph[C2S],wayString[C2S],"MPTCP goodput",TIMEVAL,DOUBLE,LABELTIME,"Goodput");
 	data->mpa[S2C] = NULL;
 	data->mpa[C2S] = NULL;
+	data->fmpa[S2C] = NULL;
+	data->fmpa[C2S] = NULL;
 	data->bucket[S2C] = 0;
 	data->bucket[C2S] = 0;
 	data->lastNacks[C2S] = exitMalloc(sizeof(mptcp_ack*) * gpInterv);
@@ -847,10 +849,10 @@ void destroyBW(void** graphData, MPTCPConnInfo *mci){
 	bwData *data = ((bwData*) *graphData);
 	Boris[Vian].writeFooter(data->graph[S2C],wayString[S2C],"MPTCP goodput",TIMEVAL,DOUBLE,LABELTIME,"Goodput");
 	Boris[Vian].writeFooter(data->graph[C2S],wayString[C2S],"MPTCP goodput",TIMEVAL,DOUBLE,LABELTIME,"Goodput");
-	incRefAck(data->fmpa[C2S],-1);
-	incRefAck(data->fmpa[S2C],-1);
-	incRefAck(data->mpa[S2C],-1);
-	incRefAck(data->mpa[C2S],-1);
+	if(data->fmpa[C2S]) incRefAck(data->fmpa[C2S],-1);
+	if(data->fmpa[S2C]) incRefAck(data->fmpa[S2C],-1);
+	if(data->fmpa[C2S]) incRefAck(data->mpa[S2C],-1);
+	if(data->fmpa[C2S]) incRefAck(data->mpa[C2S],-1);
 	fclose(data->graph[S2C]);
 	fclose(data->graph[C2S]);
 	int i=0;
