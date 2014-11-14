@@ -10,6 +10,15 @@
 
 #include "list.h"
 #include <sys/time.h>
+#include "uthash.h"
+
+//#ifndef USE_HASHTABLE
+//#define USE_HASHTABLE
+//#endif
+
+//#define USE_HASHTABLE
+
+
 
 #define REVERT 1
 #define DONOTREVERT 0
@@ -49,7 +58,7 @@
 #define TCP_WIN_FLIGHT		0
 #define TCP_MAX_GRAPH		1
 
-
+#define HASH_SIZE			4
 
 typedef struct mptcp_sf mptcp_sf;
 typedef struct mptcp_conn mptcp_conn;
@@ -121,6 +130,9 @@ struct mptcp_sf{
 	//unacked by subflow
 	OrderedList *tcpUnacked[WAYS];
 	unsigned int *tcpLastAck[WAYS];
+#ifdef USE_HASHTABLE
+	UT_hash_handle hh;
+#endif
 };
 
 struct mptcp_conn{
@@ -135,6 +147,10 @@ struct mptcp_conn{
 
 	FILE* addAddr;
 	FILE* rmAddr;
+#ifdef USE_HASHTABLE
+	UT_hash_handle hh;
+	u_char hash_s[HASH_SIZE];
+#endif
 };
 
 struct mptcp_map{
@@ -259,5 +275,7 @@ struct sniff_tcp {
 extern int maxSeqQueueLength;
 extern int add_addr;
 extern int rm_addr;
+
+
 
 #endif /* MPTCPTRACE_H_ */

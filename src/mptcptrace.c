@@ -150,7 +150,7 @@ int openFile(int *offset, pcap_t **handle){
 	}
 	return 0;
 }
-void handle_MPTCP_ADDADDR(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp, struct timeval ts){
+void handle_MPTCP_ADDADDR(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, struct timeval ts){
 	int way;
 
 	mptcp_sf *msf = getSubflowFromIPTCP(l,ip,tcp,&way);
@@ -171,7 +171,7 @@ void handle_MPTCP_ADDADDR(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp, s
 	}
 }
 
-void handle_MPTCP_RMADDR(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp, struct timeval ts){
+void handle_MPTCP_RMADDR(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, struct timeval ts){
 	int way,n,i,id;
 
 	mptcp_sf *msf = getSubflowFromIPTCP(l,ip,tcp,&way);
@@ -186,7 +186,7 @@ void handle_MPTCP_RMADDR(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp, st
 	}
 }
 
-void handle_MPTCP_DSS(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp, struct timeval ts){
+void handle_MPTCP_DSS(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, struct timeval ts){
 	mptcp_map *mpmap;
 	mptcp_ack *mpack;
 	u_char* mpdss = first_MPTCP_sub(tcp,MPTCP_SUB_DSS);
@@ -258,10 +258,20 @@ int mainLoop(){
 	struct pcap_pkthdr header;
 	struct sniff_tcp *tcp_segment;
 	struct sniff_ip *ip_packet;
+#ifndef USE_HASHTABLE
 	List *l;
 	List *lostSynCapable;
 	l = newList(freecon);
 	lostSynCapable = newList(NULL);
+	List *tokenht = l;
+#else
+	mptcp_sf * _l = NULL;
+	mptcp_sf * _lostSynCapable = NULL;
+	mptcp_conn * _tokenht  = NULL;
+	mptcp_sf **l = &_l;
+	mptcp_sf **lostSynCapable = &_lostSynCapable ;
+	mptcp_conn **tokenht  = &_tokenht;
+#endif
 	if(openFile(&offset,&handle) != 0){
 		fprintf(stderr,"Couldn't open the file %s\n",filename);
 		exit(1);
@@ -276,10 +286,10 @@ int mainLoop(){
 					tcp_segment=(struct sniff_tcp*) (packet + offset + ip_header_len);
 					struct timeval ts;
 					if(isMPTCP_capable(tcp_segment))
-						updateListCapable(l,ip_packet,tcp_segment,lostSynCapable, header.ts);
+						updateListCapable(l,ip_packet,tcp_segment,lostSynCapable, header.ts, tokenht);
 
 					if(isMPTCP_join(tcp_segment))
-						updateListJoin(l,ip_packet,tcp_segment);
+						updateListJoin(l,ip_packet,tcp_segment, tokenht);
 
 					if(isMPTCP_dss(tcp_segment))
 						handle_MPTCP_DSS(l,ip_packet, tcp_segment, header.ts);
@@ -295,10 +305,21 @@ int mainLoop(){
 		packet = pcap_next(handle, &header);
 	}
 	pcap_close(handle);
+#ifndef USE_HASHTABLE
 	printAllConnections(l);
 	apply(l,destroyModules,NULL,NULL);
 	destroyList(l);
 	destroyList(lostSynCapable);
+#else
+	//USE ITER on l, dont forget the implicit free con
+	mptcp_conn *c, *tmp;
+	HASH_ITER(hh, *tokenht, c, tmp){
+		destroyModules(c,0,NULL,NULL);
+		printMPTCPConnections(c,0,NULL,NULL);
+		freecon(c);
+	}
+
+#endif
 	return 0;
 
 }

@@ -63,6 +63,7 @@ void freecon(void *element){
 
 }
 void build_msf(struct sniff_ip *ip, struct sniff_tcp *tcp, mptcp_sf *msf, int revert, int initList){
+	memset(msf,0,sizeof(mptcp_sf));
 	if(revert){
 		if(IS_IPV4(ip)){
 			msf->family=AF_INET;
