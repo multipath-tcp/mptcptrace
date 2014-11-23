@@ -83,6 +83,7 @@ struct MPTCPConnInfo{
 	mptcp_ack *lastack[WAYS];
 	mptcp_map *firstSeq[WAYS];
 	unsigned int lastAckSize[WAYS];
+	mptcp_map *finSeq[WAYS];
 	//win etc.
 };
 

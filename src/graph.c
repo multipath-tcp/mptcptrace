@@ -374,8 +374,8 @@ void initSeq(void** graphData, MPTCPConnInfo *mci){
 	data->graph[C2S] = Boris[Vian].openFile("seq",mci->mc->id,C2S);
 	Boris[Vian].writeHeader(data->graph[S2C],wayString[S2C],"Time sequence",TIMEVAL,DOUBLE,LABELTIME,LABELSEQ);
 	Boris[Vian].writeHeader(data->graph[C2S],wayString[C2S],"Time sequence",TIMEVAL,DOUBLE,LABELTIME,LABELSEQ);
-	data->seq[S2C] = newOrderedList(NULL,compareMap);
-	data->seq[C2S] = newOrderedList(NULL,compareMap);
+	data->seq[S2C] = newOrderedList(NULL,compareMap,NULL);
+	data->seq[C2S] = newOrderedList(NULL,compareMap,NULL);
 	data->reinject[S2C] = 0;
 	data->reinject[C2S] = 0;
 	for(i=0;i<MAX_SF;i++){
@@ -484,8 +484,8 @@ void handleNewSFSeq(mptcp_sf *msf, void* graphData, MPTCPConnInfo *mi){
 	seqData *data = ((seqData*) graphData);
 	char str[42];
 	sprintf(str,"subflow_%d",msf->id);
-	FILE *f =  fopen(str,"w");
-	fclose(f);
+	/*FILE *f =  fopen(str,"w");
+	fclose(f);*/
 
 	Boris[Vian].writeSeries(data->graph[C2S],"number",str);
 	Boris[Vian].writeSeries(data->graph[S2C],"number",str);
@@ -497,14 +497,16 @@ void handleNewSFSeq(mptcp_sf *msf, void* graphData, MPTCPConnInfo *mi){
 
 void initCI(void** graphData, MPTCPConnInfo *mci){
 	printf("create global informations\n");
-	mci->unacked[S2C] = newOrderedList(free,compareMap);
-	mci->unacked[C2S] = newOrderedList(free,compareMap);
+	mci->unacked[S2C] = newOrderedList(freeNULL,compareMap,NULL);
+	mci->unacked[C2S] = newOrderedList(freeNULL,compareMap,NULL);
 	mci->lastack[S2C] = NULL;
 	mci->lastack[C2S] = NULL;
 	mci->firstSeq[S2C] = NULL;
 	mci->firstSeq[C2S] = NULL;
 	mci->lastAckSize[S2C] = 0;
 	mci->lastAckSize[C2S] = 0;
+	mci->finSeq[C2S] = 0;
+	mci->finSeq[S2C] = 0;
 }
 
 
@@ -514,7 +516,10 @@ void CISeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq,  void* graph
 	int added;
 	Node *n;
 	if(mi->firstSeq[way] == NULL){
+		//mi->firstSeq[way] = seq;
 		initSequenceNumber(msf->mc_parent,seq->ts);
+		fprintf(stderr,"%s erf we may have lost the third ack...\n",__func__);
+		//incRefSeq(seq,1);
 	}
 	//if(mi->lastack[TOGGLE(way)] == NULL  ||  SEQ_MAP_END( seq ) >= ACK_MAP(mi->lastack[TOGGLE(way)]))
 	if(mi->lastack[TOGGLE(way)] == NULL  ||  afterOrEUI(SEQ_MAP_END( seq ), ACK_MAP(mi->lastack[TOGGLE(way)]))){

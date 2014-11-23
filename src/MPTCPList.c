@@ -51,7 +51,8 @@ void addMPTCPConnection(void *l, mptcp_conn *mc){
 	HASH_ADD( hh, *ht, hash_s, CON_KEY_LEN, mc);
 	//printf("%s do I finish this ? \n",__func__);
 	}
-	//printf("%s %p \n", __func__, *ht);
+	printf("%s %p %p\n", __func__, *ht,mc);
+	fflush(stdout);
 #else
 	addElementHead(mc,l);
 #endif
@@ -71,9 +72,23 @@ void AddLostSyn(void *l, mptcp_sf *msf){
 void rmLostSyn(void *l, mptcp_sf *msf){
 #ifdef USE_HASHTABLE
 	mptcp_sf ** ht = l;
-	//printf("%s Removing lostsyn", __func__);
-	//printf("%s before I del ..pointeris %p \n",__func__, *ht);
+	printf("%s Removing", __func__);
+	printf("%s before I del ..pointeris %p \n",__func__, *ht);
+	fflush(stdout);
 	HASH_DEL( *ht, msf);
+	//printf("%s %p \n", __func__, *ht);
+#else
+
+#endif
+}
+
+void rmConn(void *l, mptcp_conn *mc){
+#ifdef USE_HASHTABLE
+	mptcp_conn ** ht = l;
+	printf("%s Removing", __func__);
+	printf("%s before I del ..pointeris %p \n",__func__, *ht);
+	fflush(stdout);
+	HASH_DEL( *ht, mc);
 	//printf("%s %p \n", __func__, *ht);
 #else
 
@@ -174,6 +189,12 @@ mptcp_sf* getSubflow(void *l,mptcp_sf *msf){
 	return res;
 #endif
 }
+void closeConn(void *l, void *ht, mptcp_conn *mc){
+	destroyModules(mc,0,NULL,NULL);
+	printMPTCPConnections(mc,0,NULL,NULL);
+	fflush(stdout);
+	freecon(mc,NULL);
+}
 
 mptcp_sf* getSubflowFromIPTCP(List *l,struct sniff_ip *ip, struct sniff_tcp *tcp, int *way){
 	mptcp_sf msf, *found;
@@ -238,7 +259,7 @@ void add_MPTCP_conn_syn(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, voi
 		u_char* mpcapa = first_MPTCP_sub(tcp,MPTCP_SUB_CAPABLE);
 		memcpy(&mc->client_key, mpcapa+4, KEY_SIZE);
 		//TODO free them
-		mc->mptcp_sfs = newList(freemsf);
+		mc->mptcp_sfs = newList(freemsf,l);
 		fprintf(stderr,"%s Fixing mc_parent...\n",__func__);
 		msf->mc_parent = mc;
 		fprintf(stderr, "-----------Adding master sf ... ! ..... \n");
@@ -312,7 +333,7 @@ void add_MPTCP_conn_thirdAck(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp
 			memcpy(&mc->client_key, mpcapa+4, KEY_SIZE);
 			memcpy(&mc->server_key, mpcapa+4+KEY_SIZE, KEY_SIZE);
 			//TODO free them
-			mc->mptcp_sfs = newList(NULL);
+			mc->mptcp_sfs = newList(freemsf, l);
 			fprintf(stderr,"%s Fixing mc_parent...\n",__func__);
 			msf->mc_parent = mc;
 			msf->id=mc->mptcp_sfs->size;
@@ -359,6 +380,7 @@ void add_MPTCP_conn_synack(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, 
 			}
 			if(checkServerKey(msf->mc_parent->server_key) == 0){
 				printf("%s holly crap\n",__func__);
+				printMPTCPSubflow(msf,0,NULL,NULL);
 				return;
 			}
 			memcpy(&(msf->mc_parent)->server_key, mpcapa+4, 8);
@@ -451,7 +473,9 @@ void add_MPTCP_join_synack(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp){
 		fprintf(stderr, "Server h-mac has been checked ! ..... \n");
 	}
 	else{
-		fprintf(stderr, "Server h-mac is wrong ... \n");
+		fprintf(stderr, "Server h-mac is wrong ... !\n");
+		printf("Server h-mac is wrong ... !\n");
+		printMPTCPSubflow(msf,0,NULL,NULL);
 	}
 }
 

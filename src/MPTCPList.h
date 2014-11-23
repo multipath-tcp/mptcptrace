@@ -40,5 +40,7 @@ int beforeOrEUI(unsigned int ui1, unsigned int ui2);
 
 void addMPTCPConnection(void *l, mptcp_conn *mc);
 void addMPTCPSubflow(void *local, void *global, mptcp_sf *msf);
+void closeConn(void *l, void *ht, mptcp_conn *mc);
+void rmConn(void *l, mptcp_conn *mc);
 
 #endif /* MPTCPLIST_H_ */

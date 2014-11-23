@@ -33,8 +33,9 @@ mptcp_ack* new_mpa(){
 	return mpa;
 }
 
-void freemsf(void *element){
+void freemsf(void *element, void *fix){
 	mptcp_sf *msf= (mptcp_sf*) element;
+	mptcp_sf *msf2 = NULL;
 	destroyList(msf->mseqs[S2C]);
 	destroyList(msf->mseqs[C2S]);
 	destroyList(msf->macks[S2C]);
@@ -44,9 +45,15 @@ void freemsf(void *element){
 	BOTH(free LP msf->tcpLastAck,RP)
 	free(msf->tcpUnacked[S2C]);
 	free(msf->tcpUnacked[C2S]);
+	msf2 = getSubflow(fix,msf);
+	if(msf==msf2)
+		rmLostSyn(fix,element);
+	else
+		printf("Whaaaaaaaaaaat\n");
+	fflush(stdout);
 	free(element);
 }
-void freecon(void *element){
+void freecon(void *element, void *fix){
 	mptcp_conn *con = (mptcp_conn*) element;
 	destroyList(con->mptcp_sfs);
 	destroyList(con->mci->unacked[C2S]->l);
@@ -99,17 +106,21 @@ void build_msf(struct sniff_ip *ip, struct sniff_tcp *tcp, mptcp_sf *msf, int re
 	}
 	if(initList){
 		//TODO define the free fun
-		msf->mseqs[S2C] = newList(NULL);
-		msf->mseqs[C2S] = newList(NULL);
-		msf->macks[S2C] = newList(NULL);
-		msf->macks[C2S] = newList(NULL);
-		msf->tcpUnacked[C2S] = newOrderedList(free,compareTcpMap);
-		msf->tcpUnacked[S2C] = newOrderedList(free,compareTcpMap);
+		msf->mseqs[S2C] = newList(NULL,NULL);
+		msf->mseqs[C2S] = newList(NULL,NULL);
+		msf->macks[S2C] = newList(NULL,NULL);
+		msf->macks[C2S] = newList(NULL,NULL);
+		msf->tcpUnacked[C2S] = newOrderedList(freeNULL,compareTcpMap,NULL);
+		msf->tcpUnacked[S2C] = newOrderedList(freeNULL,compareTcpMap,NULL);
 		msf->tcpLastAck[C2S] = NULL;
 		msf->tcpLastAck[S2C] = NULL;
 	}
 	BOTH(msf->info , .tput =0)
 	msf->mc_parent = NULL;
+}
+
+void freeNULL(void* f, void* n){
+	free(f);
 }
 
 mptcp_sf* new_msf(struct sniff_ip *ip, struct sniff_tcp *tcp){

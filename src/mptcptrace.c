@@ -186,7 +186,13 @@ void handle_MPTCP_RMADDR(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, st
 	}
 }
 
-void handle_MPTCP_DSS(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, struct timeval ts){
+void buildLastSeq(mptcp_conn *mc, mptcp_map *seq, int way){
+	mptcp_map *endSeq = new_mpm();
+	memcpy(endSeq,seq,sizeof(mptcp_map));
+	mc->mci->finSeq[way] = endSeq;
+}
+
+void handle_MPTCP_DSS(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, struct timeval ts, void *ht){
 	mptcp_map *mpmap;
 	mptcp_ack *mpack;
 	u_char* mpdss = first_MPTCP_sub(tcp,MPTCP_SUB_DSS);
@@ -200,7 +206,7 @@ void handle_MPTCP_DSS(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, struc
 	int i;
 	//TODO gérer la partie TCP avant les call, retirer le raw TCP des fo modules ?
 	for(i=0;i<TCP_MAX_GRAPH;i++) if(modules[i].activated)  tcpModules[i].handleTCP(ip,tcp, msf, msf->mc_parent->graphdata[i], msf->mc_parent->mci, way);
-	for(i=0;i<MAX_GRAPH;i++){
+	//for(i=0;i<MAX_GRAPH;i++){
 		if(*(mpdss+3) & 0x04){
 			mpmap = new_mpm();
 			mpmap->ref_count++;
@@ -211,7 +217,16 @@ void handle_MPTCP_DSS(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, struc
 			mpmap->injectCount=1;
 			mpmap->injectOnSF = 0;
 			mpmap->injectOnSF |= 1 << msf->id;
-			if(modules[i].activated) modules[i].handleMPTCPSeq(tcp, msf, mpmap, msf->mc_parent->graphdata[i], msf->mc_parent->mci, way);
+			for(i=0;i<MAX_GRAPH;i++) if(modules[i].activated) modules[i].handleMPTCPSeq(tcp, msf, mpmap, msf->mc_parent->graphdata[i], msf->mc_parent->mci, way);
+#ifdef ENDCONN
+				if(*(mpdss+3) & 0x10){
+					fprintf(stderr,"%s Should end the connection\n",__func__);
+					buildLastSeq(msf->mc_parent,mpmap,way);
+				}
+				else{
+					//fprintf(stderr,"%s not a fin the connection\n",__func__);
+				}
+#endif
 			mpmap->ref_count--;
 			if(mpmap->ref_count==0){
 				//fprintf(stderr,"we should free this map");
@@ -224,14 +239,29 @@ void handle_MPTCP_DSS(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, struc
 			memcpy(&mpack->ack,mpdss+4,ACK_SIZE);
 			mpack->right_edge = ACK_MAP(mpack) + (ntohs(tcp->th_win) << msf->wscale[way]);
 			mpack->ts=ts;
-			if(modules[i].activated)  modules[i].handleMPTCPAck(tcp, msf, mpack, msf->mc_parent->graphdata[i], msf->mc_parent->mci, way);
+			for(i=0;i<MAX_GRAPH;i++) if(modules[i].activated)  modules[i].handleMPTCPAck(tcp, msf, mpack, msf->mc_parent->graphdata[i], msf->mc_parent->mci, way);
 			mpack->ref_count--;
 			if(mpack->ref_count==0){
 				//fprintf(stderr,"we should free this ack");
 				free(mpack);
 			}
+			if(msf->mc_parent->mci->finSeq[way] && msf->mc_parent->mci->finSeq[TOGGLE(way)]){
+				//fprintf(stderr,"%s ok both want to end %u %u\n",__func__,SEQ_MAP_END(msf->mc_parent->mci->finSeq[way]),SEQ_MAP_END(msf->mc_parent->mci->finSeq[TOGGLE(way)]));
+				if(msf->mc_parent->mci->lastack[TOGGLE(way)] && msf->mc_parent->mci->lastack[way] ){
+					//fprintf(stderr,"%s ok both want to end %u %u\n",__func__,ACK_MAP(msf->mc_parent->mci->lastack[TOGGLE(way)]),ACK_MAP(msf->mc_parent->mci->lastack[way]));
+					if(SEQ_MAP_END(msf->mc_parent->mci->finSeq[way]) == ACK_MAP(msf->mc_parent->mci->lastack[TOGGLE(way)]) &&
+							SEQ_MAP_END(msf->mc_parent->mci->finSeq[TOGGLE(way)]) == ACK_MAP(msf->mc_parent->mci->lastack[way]) ){
+						fprintf(stderr,"%s ok both seems to finished... we should close here ! \n",__func__);
+						rmConn(ht,msf->mc_parent);
+						closeConn(l,  NULL, msf->mc_parent);
+					}
+				}
+			}
+#ifdef ENDCONN
+
+#endif
 		}
-	}
+//	}
 }
 int get_ip_header_len(const u_char* packet, int offset){
 	if( IP_V((struct sniff_ip *) (packet + offset)) == 4 ){
@@ -261,8 +291,8 @@ int mainLoop(){
 #ifndef USE_HASHTABLE
 	List *l;
 	List *lostSynCapable;
-	l = newList(freecon);
-	lostSynCapable = newList(NULL);
+	l = newList(freecon,NULL);
+	lostSynCapable = newList(NULL,NULL);
 	List *tokenht = l;
 #else
 	mptcp_sf * _l = NULL;
@@ -292,7 +322,7 @@ int mainLoop(){
 						updateListJoin(l,ip_packet,tcp_segment, tokenht);
 
 					if(isMPTCP_dss(tcp_segment))
-						handle_MPTCP_DSS(l,ip_packet, tcp_segment, header.ts);
+						handle_MPTCP_DSS(l,ip_packet, tcp_segment, header.ts, tokenht);
 
 					if(isMPTCP_addAddr(tcp_segment) && add_addr)
 						handle_MPTCP_ADDADDR(l,ip_packet,tcp_segment,header.ts);
@@ -316,7 +346,7 @@ int mainLoop(){
 	HASH_ITER(hh, *tokenht, c, tmp){
 		destroyModules(c,0,NULL,NULL);
 		printMPTCPConnections(c,0,NULL,NULL);
-		freecon(c);
+		freecon(c,NULL);
 	}
 
 #endif
