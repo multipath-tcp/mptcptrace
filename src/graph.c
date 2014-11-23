@@ -514,8 +514,7 @@ void CISeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq,  void* graph
 	int added;
 	Node *n;
 	if(mi->firstSeq[way] == NULL){
-		mi->firstSeq[way] = seq;
-		incRefSeq(seq,1);
+		initSequenceNumber(msf->mc_parent,seq->ts);
 	}
 	//if(mi->lastack[TOGGLE(way)] == NULL  ||  SEQ_MAP_END( seq ) >= ACK_MAP(mi->lastack[TOGGLE(way)]))
 	if(mi->lastack[TOGGLE(way)] == NULL  ||  afterOrEUI(SEQ_MAP_END( seq ), ACK_MAP(mi->lastack[TOGGLE(way)]))){
