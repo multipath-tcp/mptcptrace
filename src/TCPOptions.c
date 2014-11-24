@@ -72,7 +72,9 @@ u_char* isMPTCP_capable(struct sniff_tcp *tcp){
 	return first_MPTCP_sub(tcp,MPTCP_SUB_CAPABLE );
 }
 
-
+u_char* isMPTCP_fastclose(struct sniff_tcp *tcp){
+	return first_MPTCP_sub(tcp,MPTCP_SUB_FASTCLOSE );
+}
 
 u_char* isMPTCP_join(struct sniff_tcp *tcp){
 	return first_MPTCP_sub(tcp,MPTCP_SUB_JOIN );

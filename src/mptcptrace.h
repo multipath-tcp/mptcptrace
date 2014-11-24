@@ -42,6 +42,7 @@
 #define MPTCP_SUB_DSS		2
 #define MPTCP_ADD_ADDR		3
 #define MPTCP_RM_ADDR		4
+#define MPTCP_SUB_FASTCLOSE 7
 
 #define TCP_OPT_WSCALE		3
 

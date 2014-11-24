@@ -186,6 +186,10 @@ void handle_MPTCP_RMADDR(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, st
 	}
 }
 
+void handle_MPTCP_FASTCLOSE(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, struct timeval ts){
+	printf("%s fast close \n",__func__);
+}
+
 void buildLastSeq(mptcp_conn *mc, mptcp_map *seq, int way){
 	mptcp_map *endSeq = new_mpm();
 	memcpy(endSeq,seq,sizeof(mptcp_map));
@@ -329,6 +333,9 @@ int mainLoop(){
 
 					if(isMPTCP_rmAddr(tcp_segment) && rm_addr)
 						handle_MPTCP_RMADDR(l,ip_packet,tcp_segment,header.ts);
+
+					if(isMPTCP_fastclose(tcp_segment) && rm_addr)
+						handle_MPTCP_FASTCLOSE(l,ip_packet,tcp_segment,header.ts);
 
 				}
 		}
