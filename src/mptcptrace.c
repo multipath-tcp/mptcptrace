@@ -186,8 +186,19 @@ void handle_MPTCP_RMADDR(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, st
 	}
 }
 
-void handle_MPTCP_FASTCLOSE(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, struct timeval ts){
-	printf("%s fast close \n",__func__);
+void handle_MPTCP_FASTCLOSE(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, struct timeval ts, void *ht){
+	int way;
+	mptcp_sf *msf = getSubflowFromIPTCP(l,ip,tcp,&way);
+	//TODO this is a first a not so good approach, we should check if the other side sends reset in reply to this.
+	if(msf){
+		printf("%s fast close \n",__func__);
+		rmConn(ht,msf->mc_parent);
+		closeConn(l,  NULL, msf->mc_parent);
+	}
+	else{
+		//TODO it may be a fast close retransmission.
+		fprintf(stderr,"No ref conn to fast close\n");
+	}
 }
 
 void buildLastSeq(mptcp_conn *mc, mptcp_map *seq, int way){
@@ -334,8 +345,8 @@ int mainLoop(){
 					if(isMPTCP_rmAddr(tcp_segment) && rm_addr)
 						handle_MPTCP_RMADDR(l,ip_packet,tcp_segment,header.ts);
 
-					if(isMPTCP_fastclose(tcp_segment) && rm_addr)
-						handle_MPTCP_FASTCLOSE(l,ip_packet,tcp_segment,header.ts);
+					if(isMPTCP_fastclose(tcp_segment, tokenht))
+						handle_MPTCP_FASTCLOSE(l,ip_packet,tcp_segment,header.ts,tokenht);
 
 				}
 		}
