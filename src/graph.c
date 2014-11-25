@@ -14,6 +14,7 @@
 #include "mptcptrace.h"
 #include "allocations.h"
 #include "MPTCPList.h"
+#include "traceInfo.h"
 
 
 
@@ -496,7 +497,7 @@ void handleNewSFSeq(mptcp_sf *msf, void* graphData, MPTCPConnInfo *mi){
  */
 
 void initCI(void** graphData, MPTCPConnInfo *mci){
-	printf("create global informations\n");
+	//printf("create global informations\n");
 	mci->unacked[S2C] = newOrderedList(freeNULL,compareMap,NULL);
 	mci->unacked[C2S] = newOrderedList(freeNULL,compareMap,NULL);
 	mci->lastack[S2C] = NULL;
@@ -518,7 +519,7 @@ void CISeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq,  void* graph
 	if(mi->firstSeq[way] == NULL){
 		//mi->firstSeq[way] = seq;
 		initSequenceNumber(msf->mc_parent,seq->ts);
-		fprintf(stderr,"%s erf we may have lost the third ack...\n",__func__);
+		mplogmsf(WARN,msf, "%s erf we may have lost the third ack...\n",__func__);
 		//incRefSeq(seq,1);
 	}
 	//if(mi->lastack[TOGGLE(way)] == NULL  ||  SEQ_MAP_END( seq ) >= ACK_MAP(mi->lastack[TOGGLE(way)]))
@@ -570,7 +571,7 @@ void CIAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack,  void* graph
 
 }
 void destroyCI(void** graphData, MPTCPConnInfo *mci){
-	printf("Destroy global informations\n");
+	//printf("Destroy global informations\n");
 }
 
 /***

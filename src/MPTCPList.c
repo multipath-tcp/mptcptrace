@@ -25,6 +25,7 @@
 #include "MPTCPList.h"
 #include "graph.h"
 #include "timingTools.h"
+#include "traceInfo.h"
 
 int id_con=0;
 
@@ -35,6 +36,7 @@ int CON_KEY_LEN =  HASH_SIZE;
 #endif
 
 void addMPTCPConnection(void *l, mptcp_conn *mc){
+	incCounter(CONNECTION_COUNTER,C2S);
 #ifdef USE_HASHTABLE
 	mptcp_conn ** ht = l;
 	u_char sha_dig2[20];
@@ -51,7 +53,7 @@ void addMPTCPConnection(void *l, mptcp_conn *mc){
 	HASH_ADD( hh, *ht, hash_s, CON_KEY_LEN, mc);
 	//printf("%s do I finish this ? \n",__func__);
 	}
-	printf("%s %p %p\n", __func__, *ht,mc);
+	//printf("%s %p %p\n", __func__, *ht,mc);
 	fflush(stdout);
 #else
 	addElementHead(mc,l);
@@ -72,8 +74,8 @@ void AddLostSyn(void *l, mptcp_sf *msf){
 void rmLostSyn(void *l, mptcp_sf *msf){
 #ifdef USE_HASHTABLE
 	mptcp_sf ** ht = l;
-	printf("%s Removing", __func__);
-	printf("%s before I del ..pointeris %p \n",__func__, *ht);
+	//printf("%s Removing", __func__);
+	//printf("%s before I del ..pointeris %p \n",__func__, *ht);
 	fflush(stdout);
 	HASH_DEL( *ht, msf);
 	//printf("%s %p \n", __func__, *ht);
@@ -85,8 +87,8 @@ void rmLostSyn(void *l, mptcp_sf *msf){
 void rmConn(void *l, mptcp_conn *mc){
 #ifdef USE_HASHTABLE
 	mptcp_conn ** ht = l;
-	printf("%s Removing", __func__);
-	printf("%s before I del ..pointeris %p \n",__func__, *ht);
+	//printf("%s Removing", __func__);
+	//printf("%s before I del ..pointeris %p \n",__func__, *ht);
 	fflush(stdout);
 	HASH_DEL( *ht, mc);
 	//printf("%s %p \n", __func__, *ht);
@@ -97,6 +99,7 @@ void rmConn(void *l, mptcp_conn *mc){
 
 
 void addMPTCPSubflow(void *local, void *global, mptcp_sf *msf){
+	incCounter(SUBFLOW_COUNTER,C2S);//TODO define way ??
 #ifdef USE_HASHTABLE
 	mptcp_sf ** ht = global;
 	//printf("%s %p \n", __func__, *ht);
@@ -191,7 +194,7 @@ mptcp_sf* getSubflow(void *l,mptcp_sf *msf){
 }
 void closeConn(void *l, void *ht, mptcp_conn *mc){
 	destroyModules(mc,0,NULL,NULL);
-	printMPTCPConnections(mc,0,NULL,NULL);
+	printMPTCPConnections(mc,0,stdout,NULL);
 	fflush(stdout);
 	freecon(mc,NULL);
 }
@@ -231,7 +234,7 @@ void add_MPTCP_conn_syn(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, voi
 		msf->wscale[C2S] = *(wscale+2);
 
 	if(getSubflow(l,msf)){
-		printf("Retransmitted syn ..... \n");
+		mplogmsf(WARN,msf, "Retransmitted syn ..... \n");
 		free(msf);
 		return;
 	}
@@ -260,13 +263,13 @@ void add_MPTCP_conn_syn(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, voi
 		memcpy(&mc->client_key, mpcapa+4, KEY_SIZE);
 		//TODO free them
 		mc->mptcp_sfs = newList(freemsf,l);
-		fprintf(stderr,"%s Fixing mc_parent...\n",__func__);
+		mplog(LOGALL, "%s Fixing mc_parent...\n",__func__);
 		msf->mc_parent = mc;
-		fprintf(stderr, "-----------Adding master sf ... ! ..... \n");
+		mplog(LOGALL,  "-----------Adding master sf ... ! ..... \n");
 		msf->id=mc->mptcp_sfs->size;
 		//addElementHead(msf,mc->mptcp_sfs);
 		addMPTCPSubflow(mc->mptcp_sfs, l, msf);
-		fprintf(stderr,"%s subflow added!..\n",__func__);
+		mplog(LOGALL, "%s subflow added!..\n",__func__);
 		//addElementHead(mc,l);
 #ifndef USE_HASHTABLE
 		addMPTCPConnection(ht,mc);
@@ -299,7 +302,7 @@ void add_MPTCP_conn_thirdAck(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp
 	build_msf(ip,tcp,&msfs,DONOTREVERT,0);
 	msf = getSubflow(l,&msfs);
 	if(msf==NULL){
-		fprintf(stderr,"------------------------syn lost, looking to recover...\n");
+		mplogmsf(LOGALL, &msfs,"------------------------syn lost, looking to recover...\n");
 #ifndef USE_HASHTABLE
 		msf = search(lostSynCapable,subflowsEqualWrapper,&msfs,NULL);
 #else
@@ -307,7 +310,7 @@ void add_MPTCP_conn_thirdAck(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp
 		msf = getSubflow(lostSynCapable, &msfs);
 #endif
 		if(msf != NULL){
-			fprintf(stderr,"Find him in the lost list...\n");
+			mplogmsf(LOGALL,msf,"Find him in the lost list...\n");
 			//consider the same scale...
 			msf->wscale[C2S] = msf->wscale[S2C];
 			mptcp_conn *mc = (mptcp_conn*) exitMalloc(sizeof(mptcp_conn));
@@ -345,7 +348,7 @@ void add_MPTCP_conn_thirdAck(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp
 			addMPTCPConnection(ht,mc);
 		}
 		else{
-			fprintf(stderr,"------------------------------I do not find him in the lost list...\n");
+			mplogmsf(LOGALL, &msfs, "------------------------------I do not find him in the lost list...\n");
 			return;
 		}
 	}
@@ -370,17 +373,16 @@ void add_MPTCP_conn_synack(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, 
 		u_char* mpcapa = first_MPTCP_sub(tcp,MPTCP_SUB_CAPABLE);
 		//TODO msf should allow access to the parent
 		if(msf->mc_parent == NULL){
-			fprintf(stderr,"Should not happen...\n");
+			mplog(BUG, "%s : Conection parent not fixed in a subflow...\n",__func__);
 
 		}
 		else{
 			if(memcmp(&(msf->mc_parent)->server_key,mpcapa+4,KEY_SIZE)==0){
-				printf("%s Duplicate syn ack ?\n",__func__);
+				mplogmsf(WARN,msf,"%s Duplicate syn ack ?\n",__func__);
 				return;
 			}
 			if(checkServerKey(msf->mc_parent->server_key) == 0){
-				printf("%s holly crap\n",__func__);
-				printMPTCPSubflow(msf,0,NULL,NULL);
+				mplogmsf(WARN,msf,"Syn-ack with different key : \n");
 				return;
 			}
 			memcpy(&(msf->mc_parent)->server_key, mpcapa+4, 8);
@@ -388,7 +390,7 @@ void add_MPTCP_conn_synack(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, 
 		u_char* wscale = next_opt_x(OPTION_TCP_HEADER(tcp),MAX_TCP_HEADER(tcp), TCP_OPT_WSCALE);
 		if(wscale)
 			msf->wscale[S2C] = *(wscale+2);
-		fprintf(stderr, "well done, we find him  ! ..... \n");
+		mplog(LOGALL, "well done, we find him  ! ..... \n");
 #ifdef USE_HASHTABLE
 		addMPTCPConnection(ht,msf->mc_parent);
 #endif
@@ -404,7 +406,7 @@ void add_MPTCP_conn_synack(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, 
 		//addMPTCPSubflow(lostSynCapable, NULL, msfSynLost);
 		AddLostSyn(lostSynCapable,msfSynLost);
 		//TODO create a msf, put in a special list, lost syn...
-		fprintf(stderr, "could not find syn, put him in backup list...\n");
+		mplog(LOGALL,  "could not find syn, put him in backup list...\n");
 	}
 }
 
@@ -420,11 +422,11 @@ void updateListCapable(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, void
 	}
 	else{
 		if(ACK_SET(tcp)){
-			fprintf(stderr, "3 in 3HWS\n");
+			mplog(LOGALL,  "MPTCP capable : 3 in 3HWS\n");
 			add_MPTCP_conn_thirdAck(l,ip,tcp,lostSynCapable,ts, ht);
 		}
 		else{
-			printf("MMMMmmmmm \n");
+			mplog(BUG, "%s MPCAPABLE without syn nor ack set \n",__func__);
 		}
 	}
 }
@@ -441,11 +443,11 @@ int checkSynAckJoin(mptcp_sf *msf){
 	HMAC(EVP_sha1(),keyBA,2*KEY_SIZE,nonceBA,2*NONCE_SIZE,hmac,NULL);
 	//TODO, add reverse way, if connection comes from the server.
 	if(memcmp(hmac,msf->hmac_server,8)==0){
-		fprintf(stderr, "Good HMAC ! \n");
+		mplog(LOGALL, "Good HMAC ! \n");
 		return 0;
 	}
 	else{
-		fprintf(stderr, "Wrong HMAAAAAAAAAAAAAAAAAAC ! \n");
+		mplogmsf(WARN, msf, "Hmac can not be check for the in the join : \n");
 		return 1;
 	}
 
@@ -458,7 +460,8 @@ void add_MPTCP_join_synack(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp){
 
 	msf = getSubflow(l,&msfr);
 	if(msf==NULL){
-		fprintf(stderr, "Warning, unfound syn...\n");
+		mplogmsf(WARN, &msfr, "Can not find Join syn for ..\n");
+		incCounter(JOIN_FAILED_COUNTER,C2S);
 		return;
 	}
 
@@ -470,12 +473,12 @@ void add_MPTCP_join_synack(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp){
 	memcpy(&msf->server_nonce,mpcapa+12,4);
 	memcpy(&msf->hmac_server,mpcapa+4,8);
 	if(checkSynAckJoin(msf)==0){
-		fprintf(stderr, "Server h-mac has been checked ! ..... \n");
+		mplog(LOGALL,  "Server h-mac has been checked ! ..... \n");
 	}
 	else{
-		fprintf(stderr, "Server h-mac is wrong ... !\n");
-		printf("Server h-mac is wrong ... !\n");
-		printMPTCPSubflow(msf,0,NULL,NULL);
+		//fprintf(stderr, "Server h-mac is wrong ... !\n");
+		//printf("Server h-mac is wrong ... !\n");
+		//printMPTCPSubflow(msf,0,stdout,NULL);
 	}
 }
 
@@ -503,7 +506,7 @@ void add_MPTCP_join_syn(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, voi
 	int i;
 	u_char* wscale = next_opt_x(OPTION_TCP_HEADER(tcp),MAX_TCP_HEADER(tcp), TCP_OPT_WSCALE);
 	if(getSubflow(l,msf)){
-		fprintf(stderr,"Retransmitted syn_join ..... \n");
+		mplogmsf(WARN,msf,"Retransmitted syn_join ..... \n");
 		free(msf);
 		return;
 	}
@@ -518,17 +521,16 @@ void add_MPTCP_join_syn(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, voi
 	if(mc){
 		msf->mc_parent = mc;
 		msf->id=mc->mptcp_sfs->size;
-		fprintf(stderr, "-----------Adding sf ... ! ..... \n");
+		mplog(LOGALL, "-----------Adding sf ... ! ..... \n");
 		//addElementHead(msf, mc->mptcp_sfs);
 		addMPTCPSubflow(mc->mptcp_sfs, l, msf);
 		memcpy(&msf->client_nonce,mpcapa+8,NONCE_SIZE);
-		fprintf(stderr, "The key has been found and the nonce copied ! ..... \n");
-		//TODO new sf hook
+		mplog(LOGALL, "The key has been found and the nonce copied ! ..... \n");
 		for(i=0;i<MAX_GRAPH;i++) if(modules[i].activated && modules[i].handleNewSF) modules[i].handleNewSF(msf,mc->graphdata[i],mc->mci);
 	}
 	else{
+		mplogmsf(WARN , msf, "no Key found :(...\n");
 		free(msf);
-		fprintf(stderr, "no Key found :(...\n");
 	}
 }
 
@@ -543,10 +545,10 @@ void updateListJoin(void* l,  struct sniff_ip *ip, struct sniff_tcp *tcp, void *
 	}
 	else{
 		if(ACK_SET(tcp)){
-			fprintf(stderr, "3 in 3HWS\n"); // we could check the second hmac
+			mplog(LOGALL,"3 in 3HWS\n");
 		}
 		else{
-			printf("MMMMmmmmm \n");
+			mplog(LOGALL,"MMMMmmmmm \n");
 		}
 	}
 }
@@ -555,26 +557,26 @@ void printMPTCPSubflow(void* element, int pos, void* fix, void* acc){
 	mptcp_sf *msf = (mptcp_sf*) element;
 	char straddr[INET6_ADDRSTRLEN+1];
 
-	printf("\tSubflow %d with wscale : %d %d IPv%d ",pos,msf->wscale[C2S], msf->wscale[S2C], msf->family == AF_INET ? 4 : 6);
-	printf("sport %hu",ntohs(msf->th_sport));
-	printf(" dport %hu ",ntohs(msf->th_dport));
+	fprintf(fix, "\tSubflow %d with wscale : %d %d IPv%d ",pos,msf->wscale[C2S], msf->wscale[S2C], msf->family == AF_INET ? 4 : 6);
+	fprintf(fix, "sport %hu",ntohs(msf->th_sport));
+	fprintf(fix, " dport %hu ",ntohs(msf->th_dport));
 	if(msf->family == AF_INET){
-		printf("saddr %s ", inet_ntoa(msf->ip_src.in));
-		printf("daddr %s \n", inet_ntoa(msf->ip_dst.in));
+		fprintf(fix, "saddr %s ", inet_ntoa(msf->ip_src.in));
+		fprintf(fix, "daddr %s \n", inet_ntoa(msf->ip_dst.in));
 	}
 	else{
 		inet_ntop(AF_INET6,&msf->ip_src.in6,straddr,INET6_ADDRSTRLEN+1);
-		printf("saddr %s ",straddr);
+		fprintf(fix, "saddr %s ",straddr);
 		inet_ntop(AF_INET6,&msf->ip_dst.in6,straddr,INET6_ADDRSTRLEN+1);
-		printf("daddr %s \n",straddr);
+		fprintf(fix, "daddr %s \n",straddr);
 	}
 }
 void printMPTCPConnections(void* element, int pos, void* fix, void* acc){
-	printf("MPTCP connection %d with id %d\n",pos,((mptcp_conn*)element)->id);
-	apply(((mptcp_conn*)element)->mptcp_sfs,printMPTCPSubflow,NULL,NULL);
+	fprintf(fix,"MPTCP connection %d with id %d\n",pos,((mptcp_conn*)element)->id);
+	apply(((mptcp_conn*)element)->mptcp_sfs,printMPTCPSubflow,fix,NULL);
 }
 void printAllConnections(List *l){
-	apply(l,printMPTCPConnections,NULL,NULL);
+	apply(l,printMPTCPConnections,stdout,NULL);
 }
 
 void destroyModules(void* element, int pos, void* fix, void* acc){

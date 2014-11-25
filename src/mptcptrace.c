@@ -24,16 +24,18 @@
 #include "allocations.h"
 #include "MPTCPList.h"
 #include "graph.h"
+#include "traceInfo.h"
 
-char *filename = NULL;
-int offset_opt = -1;
-int gpInterv = 0;
-int Vian = 0;
-int maxSeqQueueLength = 0; // back log we want to keep to check for reinjection, if 0, infinite back log.
-int flight_select=0;
-int rtt_select=0;
-int add_addr = 0;
-int rm_addr = 0;
+char *filename			= NULL;
+int offset_opt			= -1;
+int gpInterv			= 0;
+int Vian				= 0;
+int maxSeqQueueLength	= 0; // back log we want to keep to check for reinjection, if 0, infinite back log.
+int flight_select		= 0;
+int rtt_select			= 0;
+int add_addr			= 0;
+int rm_addr				= 0;
+int paramLevel			= 0;
 
 void printHelp(){
 	printf("mptcptrace help :\n");
@@ -41,6 +43,7 @@ void printHelp(){
 	printf("\t -s : generate sequence number graph\n");
 	printf("\t -F : generate MPTCP window/flight size/tcp subflow flight sizes' sum and right edge/ack graph\n");
 	printf("\t -G x : generate MPTCP goodput, interval is defined by x\n");
+	printLogHelp();
 }
 
 void write_info(){
@@ -52,7 +55,7 @@ void write_info(){
 
 int parseArgs(int argc, char *argv[]){
 	int c;
-	while ((c = getopt (argc, argv, "haG:sARSr:f:o:F:w:q:")) != -1)
+	while ((c = getopt (argc, argv, "haG:sARSr:f:o:F:w:q:l:")) != -1)
 		switch (c){
 		case 'A':
 			add_addr=1;
@@ -68,6 +71,9 @@ int parseArgs(int argc, char *argv[]){
 			break;
 		case 'q':
 			maxSeqQueueLength = atoi(optarg);
+			break;
+		case 'l':
+			paramLevel = atoi(optarg);
 			break;
 		case 'o':
 			offset_opt = atoi(optarg);
@@ -136,11 +142,11 @@ int openFile(int *offset, pcap_t **handle){
 		type = pcap_datalink(*handle);
 		switch(type){
 		case DLT_EN10MB:
-			fprintf(stderr,"ethernet ?\n");
+			mplog(LOGALL, "ethernet ?\n");
 			*offset = 14;
 			break;
 		case DLT_LINUX_SLL:
-			fprintf(stderr,"linux cooked ?\n");
+			mplog(LOGALL, "linux cooked ?\n");
 			*offset = 16;
 			break;
 		default:
@@ -190,14 +196,16 @@ void handle_MPTCP_FASTCLOSE(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp,
 	int way;
 	mptcp_sf *msf = getSubflowFromIPTCP(l,ip,tcp,&way);
 	//TODO this is a first a not so good approach, we should check if the other side sends reset in reply to this.
+	incCounter(FAST_CLOSE_SEEN_COUNTER,way);
 	if(msf){
-		printf("%s fast close \n",__func__);
+		incCounter(FAST_CLOSE_COUNTER,way);
+		mplog(LOGALL,"%s fast close \n",__func__);
 		rmConn(ht,msf->mc_parent);
 		closeConn(l,  NULL, msf->mc_parent);
 	}
 	else{
 		//TODO it may be a fast close retransmission.
-		fprintf(stderr,"No ref conn to fast close\n");
+		mplog(LOGALL,"No ref conn to fast close\n");
 	}
 }
 
@@ -235,7 +243,7 @@ void handle_MPTCP_DSS(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, struc
 			for(i=0;i<MAX_GRAPH;i++) if(modules[i].activated) modules[i].handleMPTCPSeq(tcp, msf, mpmap, msf->mc_parent->graphdata[i], msf->mc_parent->mci, way);
 #ifdef ENDCONN
 				if(*(mpdss+3) & 0x10){
-					fprintf(stderr,"%s Should end the connection\n",__func__);
+					mplog(LOGALL, "%s Should end the connection\n",__func__);
 					buildLastSeq(msf->mc_parent,mpmap,way);
 				}
 				else{
@@ -266,7 +274,8 @@ void handle_MPTCP_DSS(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, struc
 					//fprintf(stderr,"%s ok both want to end %u %u\n",__func__,ACK_MAP(msf->mc_parent->mci->lastack[TOGGLE(way)]),ACK_MAP(msf->mc_parent->mci->lastack[way]));
 					if(SEQ_MAP_END(msf->mc_parent->mci->finSeq[way]) == ACK_MAP(msf->mc_parent->mci->lastack[TOGGLE(way)]) &&
 							SEQ_MAP_END(msf->mc_parent->mci->finSeq[TOGGLE(way)]) == ACK_MAP(msf->mc_parent->mci->lastack[way]) ){
-						fprintf(stderr,"%s ok both seems to finished... we should close here ! \n",__func__);
+						mplog(LOGALL, "%s ok both seems to finished... we should close here ! \n",__func__);
+						incCounter(FINISHED_COUNTER,C2S);
 						rmConn(ht,msf->mc_parent);
 						closeConn(l,  NULL, msf->mc_parent);
 					}
@@ -363,7 +372,7 @@ int mainLoop(){
 	mptcp_conn *c, *tmp;
 	HASH_ITER(hh, *tokenht, c, tmp){
 		destroyModules(c,0,NULL,NULL);
-		printMPTCPConnections(c,0,NULL,NULL);
+		printMPTCPConnections(c,0,stdout,NULL);
 		freecon(c,NULL);
 	}
 
@@ -374,7 +383,8 @@ int mainLoop(){
 
 
 int main(int argc, char *argv[]){
-	printf("MPTCP trace V0.0 alpha : says Hello.\n");
+	fprintf(stderr,"MPTCP trace V0.0 alpha : says Hello.\n");
+	initTraceInfo();
 	if(parseArgs(argc,argv) != 0){
 		fprintf(stderr, "Could not parse the args...\n");
 		printHelp();
@@ -382,5 +392,6 @@ int main(int argc, char *argv[]){
 	}
 	mainLoop();
 	write_info();
+	destroyTraceInfo();
 
 }

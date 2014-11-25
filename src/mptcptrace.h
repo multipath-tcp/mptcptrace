@@ -11,6 +11,8 @@
 #include "list.h"
 #include <sys/time.h>
 #include "uthash.h"
+#include <netinet/in.h>
+
 
 //#ifndef USE_HASHTABLE
 //#define USE_HASHTABLE
@@ -278,6 +280,7 @@ extern int maxSeqQueueLength;
 extern int add_addr;
 extern int rm_addr;
 
+extern int paramLevel;
 
 
 #endif /* MPTCPTRACE_H_ */
