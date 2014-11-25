@@ -382,6 +382,7 @@ void add_MPTCP_conn_synack(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, 
 				return;
 			}
 			if(checkServerKey(msf->mc_parent->server_key) == 0){
+				incCounter(SYNACK_DIFFKEY_COUNTER,C2S);
 				mplogmsf(WARN,msf,"Syn-ack with different key : \n");
 				return;
 			}
@@ -447,6 +448,7 @@ int checkSynAckJoin(mptcp_sf *msf){
 		return 0;
 	}
 	else{
+		incCounter(JOIN_WRONG_HMAC_COUNTER,C2S);
 		mplogmsf(WARN, msf, "Hmac can not be check for the in the join : \n");
 		return 1;
 	}
@@ -529,6 +531,7 @@ void add_MPTCP_join_syn(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, voi
 		for(i=0;i<MAX_GRAPH;i++) if(modules[i].activated && modules[i].handleNewSF) modules[i].handleNewSF(msf,mc->graphdata[i],mc->mci);
 	}
 	else{
+		incCounter(JOIN_FAILED_COUNTER,C2S);
 		mplogmsf(WARN , msf, "no Key found :(...\n");
 		free(msf);
 	}
