@@ -37,6 +37,9 @@ int CON_KEY_LEN =  HASH_SIZE;
 
 void addMPTCPConnection(void *l, mptcp_conn *mc){
 	incCounter(CONNECTION_COUNTER,C2S);
+	int i= 0;
+	for(i=0;i<MAX_GRAPH;i++) if(modules[i].activated)  modules[i].initModule(&mc->graphdata[i],mc->mci);
+	for(i=0;i<TCP_MAX_GRAPH;i++) if(tcpModules[i].activated) tcpModules[i].initModule(&mc->graphdata[i],mc->mci);
 #ifdef USE_HASHTABLE
 	mptcp_conn ** ht = l;
 	u_char sha_dig2[20];
@@ -257,8 +260,8 @@ void add_MPTCP_conn_syn(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, voi
 			mc->rmAddr=fopen(str,"w");
 		}
 
-		for(i=0;i<MAX_GRAPH;i++) if(modules[i].activated)  modules[i].initModule(&mc->graphdata[i],mc->mci);
-		for(i=0;i<TCP_MAX_GRAPH;i++) if(tcpModules[i].activated) tcpModules[i].initModule(&mc->graphdata[i],mc->mci);
+		//for(i=0;i<MAX_GRAPH;i++) if(modules[i].activated)  modules[i].initModule(&mc->graphdata[i],mc->mci);
+		//for(i=0;i<TCP_MAX_GRAPH;i++) if(tcpModules[i].activated) tcpModules[i].initModule(&mc->graphdata[i],mc->mci);
 		u_char* mpcapa = first_MPTCP_sub(tcp,MPTCP_SUB_CAPABLE);
 		memcpy(&mc->client_key, mpcapa+4, KEY_SIZE);
 		//TODO free them
@@ -279,8 +282,10 @@ void add_MPTCP_conn_syn(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, voi
 
 void initSequenceNumber(mptcp_conn *mc, struct timeval ts){
 	mptcp_map *initSeq[WAYS];
+	mptcp_ack *initAck[WAYS];
 	initSeq[C2S] = exitMalloc(sizeof(mptcp_map));
 	initSeq[S2C] = exitMalloc(sizeof(mptcp_map));
+	unsigned int tmp;
 	u_char sha_dig2[20];
 	SHA1(mc->client_key,KEY_SIZE,sha_dig2);
 	memcpy(initSeq[C2S]->start,&sha_dig2[16],4);
@@ -294,6 +299,23 @@ void initSequenceNumber(mptcp_conn *mc, struct timeval ts){
 	initSeq[S2C]->msf = mc->mptcp_sfs->head->element;
 	mc->mci->firstSeq[S2C] = initSeq[S2C];
 	initSeq[S2C]->ts =  ts;
+
+	//TODO CLEAN
+	// init last ack if needed.
+	initAck[C2S] = exitMalloc(sizeof(mptcp_ack));
+	initAck[S2C] = exitMalloc(sizeof(mptcp_ack));
+	tmp = SEQ_MAP_START(initSeq[C2S]) - 1;
+	tmp = htonl(tmp);
+	memcpy(initAck[S2C]->ack, &tmp, sizeof(unsigned int));
+	tmp = SEQ_MAP_START(initSeq[S2C]) - 1;
+	tmp = htonl(tmp);
+	memcpy(initAck[C2S]->ack, &tmp, sizeof(unsigned int));
+	initAck[C2S]->ts = ts;
+	initAck[S2C]->ts = ts;
+	mc->mci->lastack[C2S] = initAck[C2S];
+	mc->mci->lastack[S2C] = initAck[S2C];
+	mc->mci->lastack[C2S]->ref_count=1;
+	mc->mci->lastack[S2C]->ref_count=1;
 }
 
 void add_MPTCP_conn_thirdAck(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, void *lostSynCapable, struct timeval ts, void* ht){
@@ -330,8 +352,8 @@ void add_MPTCP_conn_thirdAck(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp
 				mc->rmAddr=fopen(str,"w");
 			}
 
-			for(i=0;i<MAX_GRAPH;i++) if(modules[i].activated)  modules[i].initModule(&mc->graphdata[i],mc->mci);
-			for(i=0;i<TCP_MAX_GRAPH;i++) if(tcpModules[i].activated) tcpModules[i].initModule(&mc->graphdata[i],mc->mci);
+			//for(i=0;i<MAX_GRAPH;i++) if(modules[i].activated)  modules[i].initModule(&mc->graphdata[i],mc->mci);
+			//for(i=0;i<TCP_MAX_GRAPH;i++) if(tcpModules[i].activated) tcpModules[i].initModule(&mc->graphdata[i],mc->mci);
 			u_char* mpcapa = first_MPTCP_sub(tcp,MPTCP_SUB_CAPABLE);
 			memcpy(&mc->client_key, mpcapa+4, KEY_SIZE);
 			memcpy(&mc->server_key, mpcapa+4+KEY_SIZE, KEY_SIZE);

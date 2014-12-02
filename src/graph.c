@@ -922,6 +922,13 @@ void destroyWFS(void** graphData, MPTCPConnInfo *mci){
 	wFSData *wfsData = ((wFSData*) *graphData);
 	int i;
 	char str[42];
+	if(mci->lastack[S2C] == NULL){
+		mplogmsf(BUG,mci->mc->mptcp_sfs->head->element,"Stats can not be done for this connection because we didn't see any ack...");
+		//printMPTCPSubflow(mci->mc->mptcp_sfs->head->element,0,stderr,NULL);
+		fclose(wfsData->f);
+		free(wfsData);
+		return;
+	}
 	struct timeval tmp = mci->lastack[S2C]->ts ;
 	unsigned int injectPackSum[WAYS] = {0,0};
 	unsigned int injectOrigSum[WAYS] = {0,0};
