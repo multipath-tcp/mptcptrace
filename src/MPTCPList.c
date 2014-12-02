@@ -316,6 +316,8 @@ void initSequenceNumber(mptcp_conn *mc, struct timeval ts){
 	mc->mci->lastack[S2C] = initAck[S2C];
 	mc->mci->lastack[C2S]->ref_count=1;
 	mc->mci->lastack[S2C]->ref_count=1;
+
+	mc->mci->lastActivity = ts;
 }
 
 void add_MPTCP_conn_thirdAck(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, void *lostSynCapable, struct timeval ts, void* ht){

@@ -36,6 +36,7 @@ int rtt_select			= 0;
 int add_addr			= 0;
 int rm_addr				= 0;
 int paramLevel			= 0;
+int timeout				= -1;
 
 void printHelp(){
 	printf("mptcptrace help :\n");
@@ -55,7 +56,7 @@ void write_info(){
 
 int parseArgs(int argc, char *argv[]){
 	int c;
-	while ((c = getopt (argc, argv, "haG:sARSr:f:o:F:w:q:l:")) != -1)
+	while ((c = getopt (argc, argv, "haG:sARSr:f:o:F:w:q:l:t:")) != -1)
 		switch (c){
 		case 'A':
 			add_addr=1;
@@ -77,6 +78,9 @@ int parseArgs(int argc, char *argv[]){
 			break;
 		case 'o':
 			offset_opt = atoi(optarg);
+			break;
+		case 't':
+			timeout = atoi(optarg);
 			break;
 		case 'f':
 			filename = optarg;
@@ -226,6 +230,7 @@ void handle_MPTCP_DSS(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, struc
 		//fprintf(stderr,"Error DSS found but connection not found....\n");
 		return;
 	}
+	msf->mc_parent->mci->lastActivity=ts;
 	int i;
 	//TODO gérer la partie TCP avant les call, retirer le raw TCP des fo modules ?
 	for(i=0;i<TCP_MAX_GRAPH;i++) if(modules[i].activated)  tcpModules[i].handleTCP(ip,tcp, msf, msf->mc_parent->graphdata[i], msf->mc_parent->mci, way);
@@ -304,6 +309,26 @@ int get_ip_header_len(const u_char* packet, int offset){
 			return -1;
 	}
 }
+
+void removeTimedOut(struct timeval ts, void *tokenht){
+#ifndef USE_HASHTABLE
+	mplog(BUG,"sorry this option needs the hash table for now\n");
+#else
+	mptcp_conn *c, *tmp;
+	mptcp_conn **ht = tokenht;
+	ts.tv_sec -= timeout;
+	HASH_ITER(hh, *ht, c, tmp){
+		if(tv_cmp(c->mci->lastActivity,ts) < 0){
+			incCounter(CONN_TIMEOUT_COUNTER,C2S);
+			mplog(WARN, "Connection timedout !\n");
+			rmConn(ht,c);
+			closeConn(NULL,  NULL, c);
+		}
+	}
+
+#endif
+}
+
 int mainLoop(){
 	int offset;
 	int ip_header_len; // not in the standard way...
@@ -312,6 +337,7 @@ int mainLoop(){
 	struct pcap_pkthdr header;
 	struct sniff_tcp *tcp_segment;
 	struct sniff_ip *ip_packet;
+	struct timeval nextCheck;
 #ifndef USE_HASHTABLE
 	List *l;
 	List *lostSynCapable;
@@ -331,6 +357,8 @@ int mainLoop(){
 		exit(1);
 	}
 	packet = pcap_next(handle, &header);
+	nextCheck=header.ts;
+	nextCheck.tv_sec += timeout;
 	while (packet != NULL) {
 		if (isIPVersionCorrect((struct sniff_ip *) (packet + offset)) /*&&
 			isTCP((struct sniff_ip *) (packet + offset))*/) {
@@ -360,6 +388,11 @@ int mainLoop(){
 				}
 		}
 		packet = pcap_next(handle, &header);
+		if(timeout > 0 && tv_cmp(nextCheck,header.ts) < 0){
+			mplog(BUG, "Ok we should do the timeout check ! \n");
+			removeTimedOut(nextCheck,tokenht);
+			nextCheck.tv_sec += timeout;
+		}
 	}
 	pcap_close(handle);
 #ifndef USE_HASHTABLE

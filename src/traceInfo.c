@@ -46,6 +46,11 @@ traceCounter counters[] = {
 				{0,0},
 				"DiffKeyInSynack"
 		},
+		{
+				CONN_TIMEOUT_COUNTER,
+				{0,0},
+				"connTimeOut"
+		},
 
 };
 
