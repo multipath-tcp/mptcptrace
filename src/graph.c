@@ -935,6 +935,7 @@ void destroyWFS(void** graphData, MPTCPConnInfo *mci){
 	tv_sub(&tmp,mci->firstSeq[C2S]->ts );
 	//TODO determine constant value
 	//writeStats(wfsData->f,"winFsClose",mci->mc->id,*(wfsData->n[C2S]),*(wfsData->n[S2C]));
+	writeStats(wfsData->f,"sfCount",mci->mc->id,mci->mc->mptcp_sfs->size, 0 );
 	writeStats(wfsData->f,"firstSeq",mci->mc->id,SEQ_MAP_START(mci->firstSeq[C2S]),SEQ_MAP_START(mci->firstSeq[S2C]) );
 	writeStats(wfsData->f,"lastAck",mci->mc->id,ACK_MAP(mci->lastack[C2S]),ACK_MAP(mci->lastack[S2C]) );
 	writeStatsD(wfsData->f,"conTime",mci->mc->id,tmp.tv_sec + tmp.tv_usec / 1000000.0,tmp.tv_sec + tmp.tv_usec / 1000000.0 );
