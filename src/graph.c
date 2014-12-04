@@ -946,6 +946,7 @@ void printSfCSV(void* element, int pos, void *fix, void *acc){
 		inet_ntop(AF_INET6,&msf->ip_dst.in6,straddrD,INET6_ADDRSTRLEN+1);
 
 	}
+	writeStatsS(f,str,msf->mc_parent->id, straddrS, straddrD );
 
 	strcat(tcpDumpFilter, straddrS);
 	strcat(tcpDumpFilter, " && tcp port ");
@@ -955,10 +956,6 @@ void printSfCSV(void* element, int pos, void *fix, void *acc){
 		strcat(tcpDumpFilter, " ) ");
 	else
 		strcat(tcpDumpFilter, " ) || ");
-
-	writeStatsS(f,str,msf->mc_parent->id, straddrS, straddrD );
-
-	writeStats(f,str,msf->mc_parent->id,msf->family == AF_INET6 ? 6 : 4,msf->family == AF_INET6 ? 6 : 4);
 
 	sprintf(str,"sf_%i_port",msf->id);
 	writeStats(f,str,msf->mc_parent->id,ntohs(msf->th_sport),ntohs(msf->th_dport));
