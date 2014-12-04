@@ -904,6 +904,10 @@ void writeStats(FILE *f, char *statName, int conID,unsigned int c2s, unsigned in
 void writeStatsD(FILE *f, char *statName, int conID,double c2s, double s2c){
 	fprintf(f,"%s;%i;%s;%f;%f\n",filename,conID,statName,c2s,s2c);
 }
+
+void writeStatsS(FILE *f, char *statName, int conID,char *c2s, char *s2c){
+	fprintf(f,"%s;%i;%s;%s;%s\n",filename,conID,statName,c2s,s2c);
+}
 void printCausedBy(void* element, int pos, void *fix, void *acc){
 	mptcp_sf *msf = (mptcp_sf*) element;
 	seqData *sData = (seqData*)(((couple*)fix)->x);
@@ -917,11 +921,56 @@ void printCausedBy(void* element, int pos, void *fix, void *acc){
 
 
 }
+void printSfCSV(void* element, int pos, void *fix, void *acc){
+	mptcp_sf *msf = (mptcp_sf*) element;
+	FILE* f = (FILE*) fix;
+	char str[42];
+	char straddrS[INET6_ADDRSTRLEN+1];
+	char straddrD[INET6_ADDRSTRLEN+1];
+	char *tcpDumpFilter =  acc;
+
+	sprintf(str,"sf_%i_ipVersion",msf->id);
+	writeStats(f,str,msf->mc_parent->id,msf->family == AF_INET6 ? 6 : 4,msf->family == AF_INET6 ? 6 : 4);
+
+	strcat(tcpDumpFilter, " ( ");
+
+	sprintf(str,"sf_%i_ip",msf->id);
+	if(msf->family == AF_INET){
+		strcat(tcpDumpFilter, "ip host ");
+		strcpy(straddrS,inet_ntoa(msf->ip_src.in));
+		strcpy(straddrD,inet_ntoa(msf->ip_dst.in));
+	}
+	else{
+		strcat(tcpDumpFilter , "ip6 host ");
+		inet_ntop(AF_INET6,&msf->ip_src.in6,straddrS,INET6_ADDRSTRLEN+1);
+		inet_ntop(AF_INET6,&msf->ip_dst.in6,straddrD,INET6_ADDRSTRLEN+1);
+
+	}
+
+	strcat(tcpDumpFilter, straddrS);
+	strcat(tcpDumpFilter, " && tcp port ");
+	sprintf(str,"%u ",ntohs(msf->th_sport));
+	strcat(tcpDumpFilter,str);
+	if(msf->mc_parent->mptcp_sfs->size == pos + 1)
+		strcat(tcpDumpFilter, " ) ");
+	else
+		strcat(tcpDumpFilter, " ) || ");
+
+	writeStatsS(f,str,msf->mc_parent->id, straddrS, straddrD );
+
+	writeStats(f,str,msf->mc_parent->id,msf->family == AF_INET6 ? 6 : 4,msf->family == AF_INET6 ? 6 : 4);
+
+	sprintf(str,"sf_%i_port",msf->id);
+	writeStats(f,str,msf->mc_parent->id,ntohs(msf->th_sport),ntohs(msf->th_dport));
+
+}
 void destroyWFS(void** graphData, MPTCPConnInfo *mci){
 	seqData *sData = ((seqData*) mci->mc->graphdata[GRAPH_SEQUENCE] );
 	wFSData *wfsData = ((wFSData*) *graphData);
 	int i;
 	char str[42];
+	char tcpDumpFilter[10000] = " tcp && ( "; // other idea ?
+
 	if(mci->lastack[S2C] == NULL){
 		mplogmsf(BUG,mci->mc->mptcp_sfs->head->element,"Stats can not be done for this connection because we didn't see any ack...");
 		//printMPTCPSubflow(mci->mc->mptcp_sfs->head->element,0,stderr,NULL);
@@ -940,6 +989,10 @@ void destroyWFS(void** graphData, MPTCPConnInfo *mci){
 	writeStats(wfsData->f,"lastAck",mci->mc->id,ACK_MAP(mci->lastack[C2S]),ACK_MAP(mci->lastack[S2C]) );
 	writeStatsD(wfsData->f,"conTime",mci->mc->id,tmp.tv_sec + tmp.tv_usec / 1000000.0,tmp.tv_sec + tmp.tv_usec / 1000000.0 );
 	writeStats(wfsData->f,"seqAcked",mci->mc->id,ACK_MAP(mci->lastack[TOGGLE(C2S)]) - SEQ_MAP_START(mci->firstSeq[C2S]),ACK_MAP(mci->lastack[TOGGLE(S2C)]) - SEQ_MAP_START(mci->firstSeq[S2C]));
+	apply(mci->mc->mptcp_sfs,printSfCSV,wfsData->f,tcpDumpFilter);
+	strcat(tcpDumpFilter, " ) ");
+	writeStatsS(wfsData->f,"tcpDumpFilter",mci->mc->id,tcpDumpFilter,"");
+
 	if(modules[GRAPH_SEQUENCE].activated == ACTIVE_MODULE){
 		writeStats(wfsData->f,"bytesReinjected",mci->mc->id,sData->reinject[C2S],sData->reinject[S2C]);
 		writeStatsD(wfsData->f,"precentReinjected",mci->mc->id,sData->reinject[C2S]*1.0/(ACK_MAP(mci->lastack[TOGGLE(C2S)]) - SEQ_MAP_START(mci->firstSeq[C2S])) ,
