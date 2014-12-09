@@ -12,11 +12,13 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <unistd.h>
 #include <netinet/tcp.h>
 #include <openssl/sha.h>
 #include <openssl/hmac.h>
 #include <sys/time.h>
+#include <errno.h>
+#include <dirent.h>
+
 #include "string.h"
 #include "list.h"
 #include "mptcptrace.h"
@@ -26,7 +28,11 @@
 #include "graph.h"
 #include "traceInfo.h"
 
+
+DIR  *dir;
+char *trace_dir 		= NULL;
 char *filename			= NULL;
+
 int offset_opt			= -1;
 int gpInterv			= 0;
 int Vian				= 0;
@@ -56,7 +62,7 @@ void write_info(){
 
 int parseArgs(int argc, char *argv[]){
 	int c;
-	while ((c = getopt (argc, argv, "haG:sARSr:f:o:F:w:q:l:t:")) != -1)
+	while ((c = getopt (argc, argv, "haG:sARSr:f:d:o:F:w:q:l:t:v")) != -1)
 		switch (c){
 		case 'A':
 			add_addr=1;
@@ -84,6 +90,9 @@ int parseArgs(int argc, char *argv[]){
 			break;
 		case 'f':
 			filename = optarg;
+			break;
+		case 'd':
+			trace_dir = optarg;
 			break;
 		case 'h':
 			printHelp();
@@ -127,15 +136,15 @@ int parseArgs(int argc, char *argv[]){
 		default:
 			abort ();
 		}
-	return filename == NULL ? 1 : 0;
+	return (filename == NULL)&&(trace_dir == NULL)  ? 1 : 0;
 }
 
-int openFile(int *offset, pcap_t **handle){
+int openFile(const char * file, int *offset, pcap_t **handle){
 	char           errbuf[PCAP_ERRBUF_SIZE];
 	int type;
-	*handle = pcap_open_offline(filename, errbuf);
+	*handle = pcap_open_offline(file, errbuf);
 	if (*handle == NULL) {
-		fprintf(stderr, "Couldn't open file %s: %s\n", filename, errbuf);
+		fprintf(stderr, "Couldn't open file %s: %s\n", file, errbuf);
 		return (2);
 	}
 	if(offset_opt > -1){
@@ -160,6 +169,7 @@ int openFile(int *offset, pcap_t **handle){
 	}
 	return 0;
 }
+
 void handle_MPTCP_ADDADDR(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, struct timeval ts){
 	int way;
 
@@ -329,15 +339,38 @@ void removeTimedOut(struct timeval ts, void *tokenht){
 #endif
 }
 
-int mainLoop(){
-	int offset;
-	int ip_header_len; // not in the standard way...
-	pcap_t *handle;
-	const u_char   *packet;
-	struct pcap_pkthdr header;
-	struct sniff_tcp *tcp_segment;
-	struct sniff_ip *ip_packet;
-	struct timeval nextCheck;
+int ends_with(const char* name, const char* extension )
+{
+  const char* ldot = strrchr(name, '.');
+  if (ldot != NULL) {
+    size_t length = strlen(extension);
+    return strncmp(ldot + 1, extension, length) == 0;
+  }
+  return 0;
+}
+
+void  processDir(void *l, void *lostSynCapable, void *tokenht){
+	if ( (dir = opendir(trace_dir) ) ==NULL )
+		perror ("could not open directory");
+	chdir(trace_dir);
+	struct dirent **namelist;
+	char* file;
+	// read list of files into namelist
+	int n = scandir(".", &namelist, 0, alphasort);
+	if (n < 0)	perror("scandir");
+	/* parse each file within directory */
+	int i = 0;
+	while (i < n) {
+		file = namelist[i]->d_name;
+		if (ends_with(file,"pcap"))
+			processFile(file,l,lostSynCapable,tokenht);
+		free(namelist[i]);
+		i++;
+		}
+	free(namelist);
+}
+
+int mainProcess(){
 #ifndef USE_HASHTABLE
 	List *l;
 	List *lostSynCapable;
@@ -352,8 +385,42 @@ int mainLoop(){
 	mptcp_sf **lostSynCapable = &_lostSynCapable ;
 	mptcp_conn **tokenht  = &_tokenht;
 #endif
-	if(openFile(&offset,&handle) != 0){
-		fprintf(stderr,"Couldn't open the file %s\n",filename);
+	if (trace_dir == NULL){
+		processFile(filename,l,lostSynCapable,tokenht);
+	}
+	else{
+		processDir(l,lostSynCapable,tokenht);
+	}
+#ifndef USE_HASHTABLE
+	printAllConnections(l);
+	apply(l,destroyModules,NULL,NULL);
+	destroyList(l);
+	destroyList(lostSynCapable);
+#else
+	//USE ITER on l, dont forget the implicit free con
+	mptcp_conn *c, *tmp;
+	HASH_ITER(hh, *tokenht, c, tmp){
+		destroyModules(c,0,NULL,NULL);
+		printMPTCPConnections(c,0,stdout,NULL);
+		freecon(c,NULL);
+	}
+
+#endif
+	return 0;
+}
+
+int processFile(const char * file, List *l, List *lostSynCapable, List *tokenht){
+	int offset;
+	int ip_header_len; // not in the standard way...
+	pcap_t *handle;
+	const u_char   *packet;
+	struct pcap_pkthdr header;
+	struct sniff_tcp *tcp_segment;
+	struct sniff_ip *ip_packet;
+	struct timeval nextCheck;
+
+	if(openFile(file, &offset,&handle) != 0){
+		fprintf(stderr,"Couldn't open the file %s\n",file);
 		exit(1);
 	}
 	packet = pcap_next(handle, &header);
@@ -395,21 +462,6 @@ int mainLoop(){
 		}
 	}
 	pcap_close(handle);
-#ifndef USE_HASHTABLE
-	printAllConnections(l);
-	apply(l,destroyModules,NULL,NULL);
-	destroyList(l);
-	destroyList(lostSynCapable);
-#else
-	//USE ITER on l, dont forget the implicit free con
-	mptcp_conn *c, *tmp;
-	HASH_ITER(hh, *tokenht, c, tmp){
-		destroyModules(c,0,NULL,NULL);
-		printMPTCPConnections(c,0,stdout,NULL);
-		freecon(c,NULL);
-	}
-
-#endif
 	return 0;
 
 }
@@ -423,7 +475,7 @@ int main(int argc, char *argv[]){
 		printHelp();
 		exit(1);
 	}
-	mainLoop();
+	mainProcess();
 	write_info();
 	destroyTraceInfo();
 
