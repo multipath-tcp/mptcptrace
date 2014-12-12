@@ -62,7 +62,7 @@ void write_info(){
 
 int parseArgs(int argc, char *argv[]){
 	int c;
-	while ((c = getopt (argc, argv, "haG:sARSr:f:d:o:F:w:q:l:t:v")) != -1)
+	while ((c = getopt (argc, argv, "haG:sARSr:f:d:o:F:w:q:l:t:")) != -1)
 		switch (c){
 		case 'A':
 			add_addr=1;
