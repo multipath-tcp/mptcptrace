@@ -352,7 +352,10 @@ int ends_with(const char* name, const char* extension )
 void  processDir(void *l, void *lostSynCapable, void *tokenht){
 	if ( (dir = opendir(trace_dir) ) ==NULL )
 		perror ("could not open directory");
-	chdir(trace_dir);
+	if(chdir(trace_dir) != 0){
+		fprintf(stderr, "Can not change to dir %s...\n",trace_dir);
+		exit(-1);
+	}
 	struct dirent **namelist;
 	char* file;
 	// read list of files into namelist
