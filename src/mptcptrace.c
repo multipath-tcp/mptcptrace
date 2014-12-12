@@ -412,7 +412,7 @@ int mainProcess(){
 	return 0;
 }
 
-int processFile(const char * file, List *l, List *lostSynCapable, List *tokenht){
+int processFile(char * file, List *l, List *lostSynCapable, List *tokenht){
 	int offset;
 	int ip_header_len; // not in the standard way...
 	pcap_t *handle;
@@ -421,6 +421,12 @@ int processFile(const char * file, List *l, List *lostSynCapable, List *tokenht)
 	struct sniff_tcp *tcp_segment;
 	struct sniff_ip *ip_packet;
 	struct timeval nextCheck;
+
+	// used for stats. When we use a dir, this will change for each file.
+	// stats will have the name of the file that contain the end of the
+	// connection or generetes the time out.
+	// TODO we may also add dir info... Requires other changes in the code.
+	filename = file;
 
 	if(openFile(file, &offset,&handle) != 0){
 		fprintf(stderr,"Couldn't open the file %s\n",file);
