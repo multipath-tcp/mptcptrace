@@ -968,8 +968,9 @@ void destroyWFS(void** graphData, MPTCPConnInfo *mci){
 	char str[42];
 	char tcpDumpFilter[10000] = " tcp && ( "; // other idea ?
 
-	if(mci->lastack[S2C] == NULL){
-		mplogmsf(BUG,mci->mc->mptcp_sfs->head->element,"Stats can not be done for this connection because we didn't see any ack...");
+	if(mci->lastack[S2C] == NULL || mci->lastack[C2S] == NULL ||
+	   mci->firstSeq[S2C] == NULL || mci->firstSeq[C2S] == NULL ){
+		mplogmsf(BUG,mci->mc->mptcp_sfs->head->element,"Stats issues with the ack/seq for this connection\n");
 		//printMPTCPSubflow(mci->mc->mptcp_sfs->head->element,0,stderr,NULL);
 		fclose(wfsData->f);
 		free(wfsData);
