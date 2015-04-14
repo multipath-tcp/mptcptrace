@@ -850,8 +850,8 @@ void destroyBW(void** graphData, MPTCPConnInfo *mci){
 	Boris[Vian].writeFooter(data->graph[C2S],wayString[C2S],"MPTCP goodput",TIMEVAL,DOUBLE,LABELTIME,"Goodput");
 	if(data->fmpa[C2S]) incRefAck(data->fmpa[C2S],-1);
 	if(data->fmpa[S2C]) incRefAck(data->fmpa[S2C],-1);
-	if(data->fmpa[C2S]) incRefAck(data->mpa[S2C],-1);
-	if(data->fmpa[C2S]) incRefAck(data->mpa[C2S],-1);
+	if(data->mpa[C2S]) incRefAck(data->mpa[C2S],-1);
+	if(data->mpa[S2C]) incRefAck(data->mpa[S2C],-1);
 	fclose(data->graph[S2C]);
 	fclose(data->graph[C2S]);
 	int i=0;
