@@ -18,9 +18,12 @@
 #include <string.h>
 #include "mptcptrace.h"
 #include "TCPOptions.h"
+#include "traceInfo.h"
+
 
 u_char* next_opt_x(u_char *opt, u_char* max, u_char x){
 	u_char* next_opt = opt;
+
 	while(next_opt < max){
 		if(*next_opt == TCPOPT_EOL)
 			return NULL;
@@ -29,7 +32,14 @@ u_char* next_opt_x(u_char *opt, u_char* max, u_char x){
 		if(*next_opt == TCPOPT_NOP)
 			next_opt++;
 		else{
-			next_opt += (uint8_t)*(next_opt + 1);
+			uint8_t opt_len =  (uint8_t)*(next_opt + 1);
+			if (opt_len > 0)
+				next_opt += opt_len;
+			else{
+				printf("Too-short TCP option length \n");
+				mplog(BUG,"Too-short TCP option length \n");
+				return NULL;
+			}
 		}
 	}
 	return NULL;
