@@ -344,7 +344,7 @@ void add_MPTCP_conn_thirdAck(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp
 			msf->wscale[C2S] = msf->wscale[S2C];
 			mptcp_conn *mc = (mptcp_conn*) exitMalloc(sizeof(mptcp_conn));
 			MPTCPConnInfo *mci = (MPTCPConnInfo *) exitMalloc(sizeof(MPTCPConnInfo));
-			memset(msf,0,sizeof(mptcp_conn));
+			memset(mc,0,sizeof(mptcp_conn));
 			char str[42];
 			mc->mci = mci;
 			mc->id = getConnectionID();
