@@ -199,7 +199,9 @@ mptcp_sf* getSubflow(void *l,mptcp_sf *msf){
 #endif
 }
 void closeConn(void *l, void *ht, mptcp_conn *mc){
-	destroyModules(mc,0,NULL,NULL);
+	if(!checkServerKey(mc->server_key)){
+		destroyModules(mc,0,NULL,NULL);
+	}
 	printMPTCPConnections(mc,0,stdout,NULL);
 	fflush(stdout);
 	freecon(mc,NULL);
