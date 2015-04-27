@@ -240,6 +240,10 @@ void handle_MPTCP_DSS(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, struc
 		//fprintf(stderr,"Error DSS found but connection not found....\n");
 		return;
 	}
+	if(checkServerKey(msf->mc_parent->server_key)){
+		mplogmsf(WARN, msf, "Server key is unknown, I can't do the match\n");
+		return;
+	}
 	msf->mc_parent->mci->lastActivity=ts;
 	int i;
 	//TODO gérer la partie TCP avant les call, retirer le raw TCP des fo modules ?
