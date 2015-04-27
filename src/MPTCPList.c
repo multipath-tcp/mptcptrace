@@ -89,6 +89,9 @@ void rmLostSyn(void *l, mptcp_sf *msf){
 
 void rmConn(void *l, mptcp_conn *mc){
 #ifdef USE_HASHTABLE
+	if(checkServerKey(mc->server_key)){
+		return;
+	}
 	mptcp_conn ** ht = l;
 	//printf("%s Removing", __func__);
 	//printf("%s before I del ..pointeris %p \n",__func__, *ht);

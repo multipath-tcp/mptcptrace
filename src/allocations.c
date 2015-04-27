@@ -56,15 +56,18 @@ void freemsf(void *element, void *fix){
 void freecon(void *element, void *fix){
 	mptcp_conn *con = (mptcp_conn*) element;
 	destroyList(con->mptcp_sfs);
-	destroyList(con->mci->unacked[C2S]->l);
-	destroyList(con->mci->unacked[S2C]->l);
-	BOTH( free LP con->mci->lastack, RP)
+	if(!checkServerKey(con->server_key)){
+		destroyList(con->mci->unacked[C2S]->l);
+		destroyList(con->mci->unacked[S2C]->l);
+		BOTH( free LP con->mci->lastack, RP)
+		free(con->mci->unacked[C2S]);
+		free(con->mci->unacked[S2C]);
+		free(con->mci->firstSeq[C2S]);
+		free(con->mci->firstSeq[S2C]);
+
+	}
 	if(add_addr) fclose(con->addAddr);
 	if(rm_addr) fclose(con->rmAddr);
-	free(con->mci->unacked[C2S]);
-	free(con->mci->unacked[S2C]);
-	free(con->mci->firstSeq[C2S]);
-	free(con->mci->firstSeq[S2C]);
 	free(con->mci);
 	free(element);
 
