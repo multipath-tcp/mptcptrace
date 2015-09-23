@@ -234,7 +234,7 @@ int getConnectionID(){
 }
 //#endif
 
-void add_MPTCP_conn_syn(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, void *ht){
+void add_MPTCP_conn_syn(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, void *ht, struct timeval ts){
 	mptcp_sf *msf = new_msf(ip,tcp);
 	int i;
 	u_char* wscale = next_opt_x(OPTION_TCP_HEADER(tcp),MAX_TCP_HEADER(tcp), TCP_OPT_WSCALE);
@@ -254,6 +254,7 @@ void add_MPTCP_conn_syn(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, voi
 		mc->mci = mci;
 		mc->id = getConnectionID();
 		mc->mci->mc = mc;
+		mc->mci->lastActivity = ts;
 		memset(&mc->server_key,0,KEY_SIZE);
 
 		if(add_addr){
@@ -349,6 +350,7 @@ void add_MPTCP_conn_thirdAck(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp
 			mc->mci = mci;
 			mc->id = getConnectionID();
 			mc->mci->mc = mc;
+			mc->mci->lastActivity = ts;
 
 			if(add_addr){
 				sprintf(str,"add_addr_%d.csv",mc->id);
@@ -447,7 +449,7 @@ void updateListCapable(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, void
 			add_MPTCP_conn_synack(l, ip, tcp, lostSynCapable, ht);
 		}
 		else{
-			add_MPTCP_conn_syn(l, ip, tcp, ht);
+			add_MPTCP_conn_syn(l, ip, tcp, ht, ts);
 		}
 	}
 	else{

@@ -14,7 +14,7 @@ int searchMPTCPConnection(void* mc, int pos, void* searchFun, void *acc);
 
 mptcp_sf* getSubflowFromIPTCP(List *l,struct sniff_ip *ip, struct sniff_tcp *tcp, int *way);
 mptcp_sf* getSubflow(void *l,mptcp_sf *msf);
-void add_MPTCP_conn_syn(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, void *ht);
+void add_MPTCP_conn_syn(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, void *ht, struct timeval ts);
 void add_MPTCP_conn_synack(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, List *lostSynCapable, void *ht);
 void updateListCapable(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, void *lostSynCapable, struct timeval ts, void *ht);
 int checkSynAckJoin(mptcp_sf *msf);
