@@ -51,6 +51,11 @@ traceCounter counters[] = {
 				{0,0},
 				"connTimeOut"
 		},
+		{
+				CAPABLE_AFTER_JOIN_REUSE_PORT,
+				{0,0},
+				"capaToJoinReuse"
+		},
 
 };
 

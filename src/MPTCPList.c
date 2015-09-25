@@ -246,6 +246,7 @@ void add_MPTCP_conn_syn(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, voi
 	if(fmsf){
 		if(fmsf->id != 0) {
 			mplogmsf(WARN, msf, "Capable follow a join... Reuising port !\n");
+			incCounter(CAPABLE_AFTER_JOIN_REUSE_PORT,C2S);
 			rmLostSyn(l, fmsf);
 
 		}
