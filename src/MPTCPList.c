@@ -236,54 +236,62 @@ int getConnectionID(){
 
 void add_MPTCP_conn_syn(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, void *ht, struct timeval ts){
 	mptcp_sf *msf = new_msf(ip,tcp);
+	mptcp_sf *fmsf;
 	int i;
 	u_char* wscale = next_opt_x(OPTION_TCP_HEADER(tcp),MAX_TCP_HEADER(tcp), TCP_OPT_WSCALE);
 	if(wscale)
 		msf->wscale[C2S] = *(wscale+2);
 
-	if(getSubflow(l,msf)){
-		mplogmsf(WARN,msf, "Retransmitted syn ..... \n");
-		free(msf);
-		return;
+	fmsf = getSubflow(l,msf);
+	if(fmsf){
+		if(fmsf->id != 0) {
+			mplogmsf(WARN, msf, "Capable follow a join... Reuising port !\n");
+			rmLostSyn(l, fmsf);
+
+		}
+		else {
+			mplogmsf(WARN,msf, "Retransmitted syn ..... \n");
+			free(msf);
+			return;
+		}
 	}
-	else{
-		mptcp_conn *mc = (mptcp_conn*) exitMalloc(sizeof(mptcp_conn));
-		MPTCPConnInfo *mci = (MPTCPConnInfo *) exitMalloc(sizeof(MPTCPConnInfo));
-		char str[42];
 
-		mc->mci = mci;
-		mc->id = getConnectionID();
-		mc->mci->mc = mc;
-		mc->mci->lastActivity = ts;
-		memset(&mc->server_key,0,KEY_SIZE);
+	mptcp_conn *mc = (mptcp_conn*) exitMalloc(sizeof(mptcp_conn));
+	MPTCPConnInfo *mci = (MPTCPConnInfo *) exitMalloc(sizeof(MPTCPConnInfo));
+	char str[42];
 
-		if(add_addr){
-			sprintf(str,"add_addr_%d.csv",mc->id);
-			mc->addAddr=fopen(str,"w");
-		}
-		if(rm_addr){
-			sprintf(str,"rm_addr_%d.csv",mc->id);
-			mc->rmAddr=fopen(str,"w");
-		}
+	mc->mci = mci;
+	mc->id = getConnectionID();
+	mc->mci->mc = mc;
+	mc->mci->lastActivity = ts;
+	memset(&mc->server_key,0,KEY_SIZE);
 
-		//for(i=0;i<MAX_GRAPH;i++) if(modules[i].activated)  modules[i].initModule(&mc->graphdata[i],mc->mci);
-		//for(i=0;i<TCP_MAX_GRAPH;i++) if(tcpModules[i].activated) tcpModules[i].initModule(&mc->graphdata[i],mc->mci);
-		u_char* mpcapa = first_MPTCP_sub(tcp,MPTCP_SUB_CAPABLE);
-		memcpy(&mc->client_key, mpcapa+4, KEY_SIZE);
-		//TODO free them
-		mc->mptcp_sfs = newList(freemsf,l);
-		mplog(LOGALL, "%s Fixing mc_parent...\n",__func__);
-		msf->mc_parent = mc;
-		mplog(LOGALL,  "-----------Adding master sf ... ! ..... \n");
-		msf->id=mc->mptcp_sfs->size;
-		//addElementHead(msf,mc->mptcp_sfs);
-		addMPTCPSubflow(mc->mptcp_sfs, l, msf);
-		mplog(LOGALL, "%s subflow added!..\n",__func__);
-		//addElementHead(mc,l);
+	if(add_addr){
+		sprintf(str,"add_addr_%d.csv",mc->id);
+		mc->addAddr=fopen(str,"w");
+	}
+	if(rm_addr){
+		sprintf(str,"rm_addr_%d.csv",mc->id);
+		mc->rmAddr=fopen(str,"w");
+	}
+
+	//for(i=0;i<MAX_GRAPH;i++) if(modules[i].activated)  modules[i].initModule(&mc->graphdata[i],mc->mci);
+	//for(i=0;i<TCP_MAX_GRAPH;i++) if(tcpModules[i].activated) tcpModules[i].initModule(&mc->graphdata[i],mc->mci);
+	u_char* mpcapa = first_MPTCP_sub(tcp,MPTCP_SUB_CAPABLE);
+	memcpy(&mc->client_key, mpcapa+4, KEY_SIZE);
+	//TODO free them
+	mc->mptcp_sfs = newList(freemsf,l);
+	mplog(LOGALL, "%s Fixing mc_parent...\n",__func__);
+	msf->mc_parent = mc;
+	mplog(LOGALL,  "-----------Adding master sf ... ! ..... \n");
+	msf->id=mc->mptcp_sfs->size;
+	//addElementHead(msf,mc->mptcp_sfs);
+	addMPTCPSubflow(mc->mptcp_sfs, l, msf);
+	mplog(LOGALL, "%s subflow added!..\n",__func__);
+	//addElementHead(mc,l);
 #ifndef USE_HASHTABLE
-		addMPTCPConnection(ht,mc);
+	addMPTCPConnection(ht,mc);
 #endif
-	}
 }
 
 void initSequenceNumber(mptcp_conn *mc, struct timeval ts){

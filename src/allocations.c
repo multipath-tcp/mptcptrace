@@ -20,6 +20,7 @@
 #include "TCPOptions.h"
 #include "allocations.h"
 #include "MPTCPList.h"
+#include "traceInfo.h"
 
 mptcp_map* new_mpm(){
 	mptcp_map *mpm = (mptcp_map*) malloc(sizeof(mptcp_map));
@@ -49,7 +50,7 @@ void freemsf(void *element, void *fix){
 	if(msf==msf2)
 		rmLostSyn(fix,element);
 	else
-		printf("Whaaaaaaaaaaat\n");
+		mplogmsf(WARN, msf, "Subflow already removed from the tuple based hashtable. (capable after join?) !\n");
 	fflush(stdout);
 	free(element);
 }
