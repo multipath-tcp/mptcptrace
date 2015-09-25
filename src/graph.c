@@ -523,7 +523,7 @@ void CISeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq,  void* graph
 		//incRefSeq(seq,1);
 	}
 	//if(mi->lastack[TOGGLE(way)] == NULL  ||  SEQ_MAP_END( seq ) >= ACK_MAP(mi->lastack[TOGGLE(way)]))
-	if(mi->lastack[TOGGLE(way)] == NULL  ||  afterOrEUI(SEQ_MAP_END( seq ), ACK_MAP(mi->lastack[TOGGLE(way)]))){
+	if(mi->lastack[TOGGLE(way)] == NULL  ||  afterUI(SEQ_MAP_END( seq ), ACK_MAP(mi->lastack[TOGGLE(way)]))){
 		n=addElementOrderedReverseUnique(seq,mi->unacked[way],&added);
 		if(added)
 			incRefSeqNode(n);
