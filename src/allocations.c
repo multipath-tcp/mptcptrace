@@ -46,6 +46,9 @@ void freemsf(void *element, void *fix){
 	BOTH(free LP msf->tcpLastAck,RP)
 	free(msf->tcpUnacked[S2C]);
 	free(msf->tcpUnacked[C2S]);
+	if(msf->id != 0 && msf->wscale[C2S] != 0 && msf->wscale[S2C] == 0){
+		incCounter(SUSPECT_JOIN_REJECTED,C2S);
+	}
 	msf2 = getSubflow(fix,msf);
 	if(msf==msf2)
 		rmLostSyn(fix,element);

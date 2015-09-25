@@ -56,6 +56,11 @@ traceCounter counters[] = {
 				{0,0},
 				"capaToJoinReuse"
 		},
+		{
+				SUSPECT_JOIN_REJECTED,
+				{0,0},
+				"suspectJoinRejected"
+		},
 
 };
 
