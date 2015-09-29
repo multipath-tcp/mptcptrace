@@ -966,6 +966,7 @@ void destroyWFS(void** graphData, MPTCPConnInfo *mci){
 	wFSData *wfsData = ((wFSData*) *graphData);
 	int i;
 	char str[42];
+	double acked[WAYS];
 	char tcpDumpFilter[10000] = " tcp && ( "; // other idea ?
 
 	if(mci->lastack[S2C] == NULL || mci->lastack[C2S] == NULL ||
@@ -986,7 +987,9 @@ void destroyWFS(void** graphData, MPTCPConnInfo *mci){
 	writeStats(wfsData->f,"firstSeq",mci->mc->id,SEQ_MAP_START(mci->firstSeq[C2S]),SEQ_MAP_START(mci->firstSeq[S2C]) );
 	writeStats(wfsData->f,"lastAck",mci->mc->id,ACK_MAP(mci->lastack[C2S]),ACK_MAP(mci->lastack[S2C]) );
 	writeStatsD(wfsData->f,"conTime",mci->mc->id,tmp.tv_sec + tmp.tv_usec / 1000000.0,tmp.tv_sec + tmp.tv_usec / 1000000.0 );
-	writeStats(wfsData->f,"seqAcked",mci->mc->id,ACK_MAP(mci->lastack[TOGGLE(C2S)]) - SEQ_MAP_START(mci->firstSeq[C2S]),ACK_MAP(mci->lastack[TOGGLE(S2C)]) - SEQ_MAP_START(mci->firstSeq[S2C]));
+	acked[C2S] = afterOrEUI(ACK_MAP(mci->lastack[TOGGLE(C2S)]),  SEQ_MAP_START(mci->firstSeq[C2S])) ? ACK_MAP(mci->lastack[TOGGLE(C2S)]) - SEQ_MAP_START(mci->firstSeq[C2S]) : 0;
+	acked[S2C] = afterOrEUI(ACK_MAP(mci->lastack[TOGGLE(S2C)]),  SEQ_MAP_START(mci->firstSeq[S2C])) ? ACK_MAP(mci->lastack[TOGGLE(S2C)]) - SEQ_MAP_START(mci->firstSeq[S2C]) : 0;
+	writeStats(wfsData->f,"seqAcked",mci->mc->id, acked[C2S], acked[S2C]);
 	apply(mci->mc->mptcp_sfs,printSfCSV,wfsData->f,tcpDumpFilter);
 	strcat(tcpDumpFilter, " ) ");
 	writeStatsS(wfsData->f,"tcpDumpFilter",mci->mc->id,tcpDumpFilter,"");
