@@ -35,11 +35,13 @@ int SF_KEY_LEN = (offsetof(mptcp_sf, state) - offsetof(mptcp_sf, ip_src));
 int CON_KEY_LEN =  HASH_SIZE;
 #endif
 
-void addMPTCPConnection(void *l, mptcp_conn *mc){
-	incCounter(CONNECTION_COUNTER,C2S);
-	int i= 0;
-	for(i=0;i<MAX_GRAPH;i++) if(modules[i].activated)  modules[i].initModule(&mc->graphdata[i],mc->mci);
-	for(i=0;i<TCP_MAX_GRAPH;i++) if(tcpModules[i].activated) tcpModules[i].initModule(&mc->graphdata[i],mc->mci);
+void addMPTCPConnection(void *l, mptcp_conn *mc, int update){
+	if(!update){
+		incCounter(CONNECTION_COUNTER,C2S);
+		int i= 0;
+		for(i=0;i<MAX_GRAPH;i++) if(modules[i].activated)  modules[i].initModule(&mc->graphdata[i],mc->mci);
+		for(i=0;i<TCP_MAX_GRAPH;i++) if(tcpModules[i].activated) tcpModules[i].initModule(&mc->graphdata[i],mc->mci);
+	}
 #ifdef USE_HASHTABLE
 	mptcp_conn ** ht = l;
 	u_char sha_dig2[20];
@@ -291,7 +293,7 @@ void add_MPTCP_conn_syn(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, voi
 	mplog(LOGALL, "%s subflow added!..\n",__func__);
 	//addElementHead(mc,l);
 #ifndef USE_HASHTABLE
-	addMPTCPConnection(ht,mc);
+	addMPTCPConnection(ht,mc, 0);
 #endif
 }
 
@@ -385,11 +387,23 @@ void add_MPTCP_conn_thirdAck(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp
 			//addElementHead(msf,mc->mptcp_sfs);
 			addMPTCPSubflow(mc->mptcp_sfs, l, msf);
 			//addElementHead(mc,l);
-			addMPTCPConnection(ht,mc);
+			addMPTCPConnection(ht,mc, 0);
 		}
 		else{
 			mplogmsf(LOGALL, &msfs, "------------------------------I do not find him in the lost list...\n");
 			return;
+		}
+	}
+	else{
+		u_char* mpcapa = first_MPTCP_sub(tcp,MPTCP_SUB_CAPABLE);
+		if(memcmp(msf->mc_parent->client_key, mpcapa + 4, KEY_SIZE) ||
+				memcmp(msf->mc_parent->server_key, mpcapa + 4 + KEY_SIZE, KEY_SIZE)){
+			mplogmsf(WARN, msf, "The key from SYN or SYNACK differs from third ack.\n");
+			rmConn(ht, msf->mc_parent);
+			memcpy(&msf->mc_parent->client_key, mpcapa + 4, KEY_SIZE);
+			memcpy(&msf->mc_parent->server_key, mpcapa + 4 + KEY_SIZE, KEY_SIZE);
+			addMPTCPConnection(ht, msf->mc_parent, 1);
+			incCounter(THIRD_ACK_KEYDIFF, C2S);
 		}
 	}
 	initSequenceNumber(msf->mc_parent,ts);
@@ -433,7 +447,7 @@ void add_MPTCP_conn_synack(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, 
 			msf->wscale[S2C] = *(wscale+2);
 		mplog(LOGALL, "well done, we find him  ! ..... \n");
 #ifdef USE_HASHTABLE
-		addMPTCPConnection(ht,msf->mc_parent);
+		addMPTCPConnection(ht,msf->mc_parent, 0);
 #endif
 		//fprintf(stderr, "And finish to add connection ! ..... \n");
 	}

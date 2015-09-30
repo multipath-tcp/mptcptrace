@@ -61,6 +61,11 @@ traceCounter counters[] = {
 				{0,0},
 				"suspectJoinRejected"
 		},
+		{
+			THIRD_ACK_KEYDIFF,
+			{0,0},
+			"thirdAckKeyDiff"
+		},
 
 };
 
