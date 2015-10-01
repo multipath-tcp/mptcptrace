@@ -557,18 +557,28 @@ mptcp_conn* getConnectionFromHash(void* l,u_char* hash){
 #endif
 }
 
-void add_MPTCP_join_syn(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, void *ht){
+void add_MPTCP_join_syn(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, void *ht, struct timeval ts){
 	mptcp_sf *msf = new_msf(ip,tcp);
+	mptcp_sf *fmsf;
+
 	int i;
 	u_char* wscale = next_opt_x(OPTION_TCP_HEADER(tcp),MAX_TCP_HEADER(tcp), TCP_OPT_WSCALE);
-	if(getSubflow(l,msf)){
-		mplogmsf(WARN,msf,"Retransmitted syn_join ..... \n");
-		free(msf);
-		return;
+	u_char* mpcapa = first_MPTCP_sub(tcp,MPTCP_SUB_JOIN);
+
+	fmsf = getSubflow(l,msf);
+	if(fmsf){
+		if(memcmp(fmsf->client_nonce, mpcapa + 8, NONCE_SIZE)){
+			mplogmsf(WARN, msf, "Join with same tuple but != nonce...Disable the subflow on old connection\n");
+			rmLostSyn(l, fmsf);
+		}
+		else {
+			mplogmsf(WARN,msf,"Retransmitted syn_join ..... \n");
+			free(msf);
+			return;
+		}
 	}
 	if(wscale)
 		msf->wscale[C2S] = *(wscale+2);
-	u_char* mpcapa = first_MPTCP_sub(tcp,MPTCP_SUB_JOIN);
 #ifndef USE_HASHTABLE
 	mptcp_conn *mc = getConnectionFromHash(l,mpcapa+4);
 #else
@@ -576,8 +586,9 @@ void add_MPTCP_join_syn(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, voi
 #endif
 	if(mc){
 		msf->mc_parent = mc;
+		mc->mci->lastActivity = ts;
 		msf->id=mc->mptcp_sfs->size;
-		mplog(LOGALL, "-----------Adding sf ... ! ..... \n");
+		mplog(LOGALL, "-----------Adding sf ... ! ..... %i \n", msf->id);
 		//addElementHead(msf, mc->mptcp_sfs);
 		addMPTCPSubflow(mc->mptcp_sfs, l, msf);
 		memcpy(&msf->client_nonce,mpcapa+8,NONCE_SIZE);
@@ -591,13 +602,13 @@ void add_MPTCP_join_syn(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, voi
 	}
 }
 
-void updateListJoin(void* l,  struct sniff_ip *ip, struct sniff_tcp *tcp, void *ht){
+void updateListJoin(void* l,  struct sniff_ip *ip, struct sniff_tcp *tcp, void *ht, struct timeval ts){
 	if(SYN_SET(tcp)){
 		if(ACK_SET(tcp)){
 			add_MPTCP_join_synack(l,ip,tcp);
 		}
 		else{
-			add_MPTCP_join_syn(l,ip, tcp, ht);
+			add_MPTCP_join_syn(l,ip, tcp, ht, ts);
 		}
 	}
 	else{

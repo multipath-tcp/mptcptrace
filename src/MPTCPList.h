@@ -22,8 +22,8 @@ void add_MPTCP_join_synack(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp);
 int compareHash(void* element, int pos, void* arg, void *acc);
 mptcp_conn* getConnectionFromHash(void* l,u_char* hash);
 
-void add_MPTCP_join_syn(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, void *ht);
-void updateListJoin(void* l,  struct sniff_ip *ip, struct sniff_tcp *tcp, void *ht);
+void add_MPTCP_join_syn(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, void *ht, struct timeval ts);
+void updateListJoin(void* l,  struct sniff_ip *ip, struct sniff_tcp *tcp, void *ht, struct timeval ts);
 void printMPTCPSubflow(void* element, int pos, void* fix, void* acc);
 void printMPTCPConnections(void* element, int pos, void* fix, void* acc);
 void printAllConnections(List *l);

@@ -451,7 +451,7 @@ int processFile(char * file, List *l, List *lostSynCapable, List *tokenht){
 						updateListCapable(l,ip_packet,tcp_segment,lostSynCapable, header.ts, tokenht);
 
 					if(isMPTCP_join(tcp_segment))
-						updateListJoin(l,ip_packet,tcp_segment, tokenht);
+						updateListJoin(l,ip_packet,tcp_segment, tokenht, header.ts);
 
 					if(isMPTCP_dss(tcp_segment))
 						handle_MPTCP_DSS(l,ip_packet, tcp_segment, header.ts, tokenht);
