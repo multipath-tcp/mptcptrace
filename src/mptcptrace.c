@@ -465,6 +465,12 @@ int processFile(char * file, List *l, List *lostSynCapable, List *tokenht){
 					if(isMPTCP_fastclose(tcp_segment, tokenht))
 						handle_MPTCP_FASTCLOSE(l,ip_packet,tcp_segment,header.ts,tokenht);
 
+					if(isRSTSegment(tcp_segment)){
+						rmTCP(l, ip_packet, tcp_segment);
+					}
+					if(isFINSegment(tcp_segment)){
+						setHalfClosed(l, ip_packet, tcp_segment);
+					}
 				}
 		}
 		packet = pcap_next(handle, &header);

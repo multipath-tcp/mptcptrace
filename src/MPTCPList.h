@@ -43,4 +43,7 @@ void addMPTCPSubflow(void *local, void *global, mptcp_sf *msf);
 void closeConn(void *l, void *ht, mptcp_conn *mc);
 void rmConn(void *l, mptcp_conn *mc);
 
+void rmTCP(void *l, struct sniff_ip *ip, struct sniff_tcp *tcp);
+void setHalfClosed(void *l, struct sniff_ip *ip, struct sniff_tcp *tcp);
+
 #endif /* MPTCPLIST_H_ */

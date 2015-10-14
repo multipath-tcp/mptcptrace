@@ -114,6 +114,8 @@ typedef union {
 	struct in6_addr in6;
 } addr_storage;
 
+#define HALF_CLOSED 666
+
 struct mptcp_sf{
 	sa_family_t	family;
 	int id;
@@ -256,6 +258,8 @@ struct sniff_tcp {
 
 #define SYN_SET(tcp) (tcp->th_flags & TH_SYN)
 #define ACK_SET(tcp) (tcp->th_flags & TH_ACK)
+#define RST_SET(tcp) (tcp->th_flags & TH_RST)
+#define FIN_SET(tcp) (tcp->th_flags & TH_FIN)
 
 #define SEQ_MAP_START(mpm) ((unsigned int)(ntohl(*((int*)(&mpm->start)))))
 #define SEQ_MAP_LEN(mpm) ((unsigned int)(ntohs(*((int*)(&mpm->len)))))

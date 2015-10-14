@@ -74,6 +74,12 @@ int isTCP(struct sniff_ip *ip){
 int isSYNSegment(struct sniff_tcp *tcp){
 	return SYN_SET(tcp);
 }
+int isRSTSegment(struct sniff_tcp *tcp){
+	return RST_SET(tcp);
+}
+int isFINSegment(struct sniff_tcp *tcp){
+	return FIN_SET(tcp);
+}
 u_char* contains_MPTCP(struct sniff_tcp *tcp){
 	return next_MPTCP_opt(OPTION_TCP_HEADER(tcp),MAX_TCP_HEADER(tcp) );
 }

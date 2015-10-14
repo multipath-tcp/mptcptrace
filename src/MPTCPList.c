@@ -89,6 +89,28 @@ void rmLostSyn(void *l, mptcp_sf *msf){
 #endif
 }
 
+void rmTCP(void *l, struct sniff_ip *ip, struct sniff_tcp *tcp){
+	mptcp_sf *msf = new_msf(ip,tcp);
+	mptcp_sf *fmsf;
+	int way;
+
+	fmsf = getSubflowFromIPTCP(l, ip, tcp, &way);
+	if(fmsf){
+		rmLostSyn(l, fmsf);
+	}
+}
+
+void setHalfClosed(void *l, struct sniff_ip *ip, struct sniff_tcp *tcp){
+	mptcp_sf *msf = new_msf(ip,tcp);
+	mptcp_sf *fmsf;
+	int way;
+
+	fmsf = getSubflowFromIPTCP(l, ip, tcp, &way);
+	if(fmsf){
+		fmsf->state = HALF_CLOSED;
+	}
+}
+
 void rmConn(void *l, mptcp_conn *mc){
 #ifdef USE_HASHTABLE
 	if(checkServerKey(mc->server_key)){
@@ -251,6 +273,10 @@ void add_MPTCP_conn_syn(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, voi
 			incCounter(CAPABLE_AFTER_JOIN_REUSE_PORT,C2S);
 			rmLostSyn(l, fmsf);
 
+		}
+		else if(fmsf->state==HALF_CLOSED){
+			mplogmsf(WARN, msf, "Capable follow capable after half closed.. Reuising port !\n");
+			rmLostSyn(l, fmsf);
 		}
 		else {
 			mplogmsf(WARN,msf, "Retransmitted syn ..... \n");
