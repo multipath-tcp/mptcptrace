@@ -425,7 +425,7 @@ void add_MPTCP_conn_thirdAck(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp
 		if(memcmp(msf->mc_parent->client_key, mpcapa + 4, KEY_SIZE) ||
 				memcmp(msf->mc_parent->server_key, mpcapa + 4 + KEY_SIZE, KEY_SIZE)){
 			mplogmsf(WARN, msf, "The key from SYN or SYNACK differs from third ack.\n");
-			int u = getConnectionFromHash(ht,msf->mc_parent->server_key) == NULL ? 0 : 1;
+			int u = getConnectionFromHash(ht,msf->mc_parent->hash_s) == NULL ? 0 : 1;
 			rmConn(ht, msf->mc_parent);
 			memcpy(&msf->mc_parent->client_key, mpcapa + 4, KEY_SIZE);
 			memcpy(&msf->mc_parent->server_key, mpcapa + 4 + KEY_SIZE, KEY_SIZE);
