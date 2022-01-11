@@ -143,6 +143,12 @@ int openFile(int *offset, pcap_t **handle){
 			fprintf(stderr,"linux cooked ?\n");
 			*offset = 16;
 			break;
+#ifdef DLT_LINUX_SLL2
+		case DLT_LINUX_SLL2:
+			fprintf(stderr,"linux cooked 2 ?\n");
+			*offset = 20;
+			break;
+#endif
 		default:
 			fprintf(stderr,"Unknown encapsulation type, please use option -o to precise the offset (bytes) to find the ip header...\n");
 			return 2;
