@@ -20,6 +20,7 @@
 #include "TCPOptions.h"
 #include "allocations.h"
 #include "MPTCPList.h"
+#include "traceInfo.h"
 
 mptcp_map* new_mpm(){
 	mptcp_map *mpm = (mptcp_map*) malloc(sizeof(mptcp_map));
@@ -33,8 +34,9 @@ mptcp_ack* new_mpa(){
 	return mpa;
 }
 
-void freemsf(void *element){
+void freemsf(void *element, void *fix){
 	mptcp_sf *msf= (mptcp_sf*) element;
+	mptcp_sf *msf2 = NULL;
 	destroyList(msf->mseqs[S2C]);
 	destroyList(msf->mseqs[C2S]);
 	destroyList(msf->macks[S2C]);
@@ -44,25 +46,38 @@ void freemsf(void *element){
 	BOTH(free LP msf->tcpLastAck,RP)
 	free(msf->tcpUnacked[S2C]);
 	free(msf->tcpUnacked[C2S]);
+	if(msf->id != 0 && msf->wscale[C2S] != 0 && msf->wscale[S2C] == 0){
+		incCounter(SUSPECT_JOIN_REJECTED,C2S);
+	}
+	msf2 = getSubflow(fix,msf);
+	if(msf==msf2)
+		rmLostSyn(fix,element);
+	else
+		mplogmsf(WARN, msf, "Subflow already removed from the tuple based hashtable. (capable after join?) !\n");
+	fflush(stdout);
 	free(element);
 }
-void freecon(void *element){
+void freecon(void *element, void *fix){
 	mptcp_conn *con = (mptcp_conn*) element;
 	destroyList(con->mptcp_sfs);
-	destroyList(con->mci->unacked[C2S]->l);
-	destroyList(con->mci->unacked[S2C]->l);
-	BOTH( free LP con->mci->lastack, RP)
+	if(!checkServerKey(con->server_key)){
+		destroyList(con->mci->unacked[C2S]->l);
+		destroyList(con->mci->unacked[S2C]->l);
+		BOTH( free LP con->mci->lastack, RP)
+		free(con->mci->unacked[C2S]);
+		free(con->mci->unacked[S2C]);
+		free(con->mci->firstSeq[C2S]);
+		free(con->mci->firstSeq[S2C]);
+
+	}
 	if(add_addr) fclose(con->addAddr);
 	if(rm_addr) fclose(con->rmAddr);
-	free(con->mci->unacked[C2S]);
-	free(con->mci->unacked[S2C]);
-	free(con->mci->firstSeq[C2S]);
-	free(con->mci->firstSeq[S2C]);
 	free(con->mci);
 	free(element);
 
 }
 void build_msf(struct sniff_ip *ip, struct sniff_tcp *tcp, mptcp_sf *msf, int revert, int initList){
+	memset(msf,0,sizeof(mptcp_sf));
 	if(revert){
 		if(IS_IPV4(ip)){
 			msf->family=AF_INET;
@@ -98,17 +113,21 @@ void build_msf(struct sniff_ip *ip, struct sniff_tcp *tcp, mptcp_sf *msf, int re
 	}
 	if(initList){
 		//TODO define the free fun
-		msf->mseqs[S2C] = newList(NULL);
-		msf->mseqs[C2S] = newList(NULL);
-		msf->macks[S2C] = newList(NULL);
-		msf->macks[C2S] = newList(NULL);
-		msf->tcpUnacked[C2S] = newOrderedList(free,compareTcpMap);
-		msf->tcpUnacked[S2C] = newOrderedList(free,compareTcpMap);
+		msf->mseqs[S2C] = newList(NULL,NULL);
+		msf->mseqs[C2S] = newList(NULL,NULL);
+		msf->macks[S2C] = newList(NULL,NULL);
+		msf->macks[C2S] = newList(NULL,NULL);
+		msf->tcpUnacked[C2S] = newOrderedList(freeNULL,compareTcpMap,NULL);
+		msf->tcpUnacked[S2C] = newOrderedList(freeNULL,compareTcpMap,NULL);
 		msf->tcpLastAck[C2S] = NULL;
 		msf->tcpLastAck[S2C] = NULL;
 	}
 	BOTH(msf->info , .tput =0)
 	msf->mc_parent = NULL;
+}
+
+void freeNULL(void* f, void* n){
+	free(f);
 }
 
 mptcp_sf* new_msf(struct sniff_ip *ip, struct sniff_tcp *tcp){

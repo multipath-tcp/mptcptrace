@@ -1,9 +1,9 @@
 
 bin_PROGRAMS = mptcptrace
-mptcptrace_SOURCES = mptcptrace.c TCPOptions.c allocations.c MPTCPList.c list.c graph.c timingTools.c
+mptcptrace_SOURCES = mptcptrace.c TCPOptions.c allocations.c MPTCPList.c list.c graph.c timingTools.c traceInfo.c
 
 GIT_VERSION = `git describe --abbrev=0 --dirty --always`
 
 mptcptrace_LDADD =  -lpcap @CRYPTO_LIBS@
-mptcptrace_LDFLAGS = -ggdb
+mptcptrace_LDFLAGS = -ggdb -gdwarf-2 -g3
 mptcptrace_CFLAGS = -DVERSION=\"$(GIT_VERSION)\" @CRYPTO_CFLAGS@

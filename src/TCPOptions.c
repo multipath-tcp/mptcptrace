@@ -18,9 +18,12 @@
 #include <string.h>
 #include "mptcptrace.h"
 #include "TCPOptions.h"
+#include "traceInfo.h"
+
 
 u_char* next_opt_x(u_char *opt, u_char* max, u_char x){
 	u_char* next_opt = opt;
+
 	while(next_opt < max){
 		if(*next_opt == TCPOPT_EOL)
 			return NULL;
@@ -29,7 +32,14 @@ u_char* next_opt_x(u_char *opt, u_char* max, u_char x){
 		if(*next_opt == TCPOPT_NOP)
 			next_opt++;
 		else{
-			next_opt += (uint8_t)*(next_opt + 1);
+			uint8_t opt_len =  (uint8_t)*(next_opt + 1);
+			if (opt_len > 0)
+				next_opt += opt_len;
+			else{
+				printf("Too-short TCP option length \n");
+				mplog(BUG,"Too-short TCP option length \n");
+				return NULL;
+			}
 		}
 	}
 	return NULL;
@@ -64,6 +74,12 @@ int isTCP(struct sniff_ip *ip){
 int isSYNSegment(struct sniff_tcp *tcp){
 	return SYN_SET(tcp);
 }
+int isRSTSegment(struct sniff_tcp *tcp){
+	return RST_SET(tcp);
+}
+int isFINSegment(struct sniff_tcp *tcp){
+	return FIN_SET(tcp);
+}
 u_char* contains_MPTCP(struct sniff_tcp *tcp){
 	return next_MPTCP_opt(OPTION_TCP_HEADER(tcp),MAX_TCP_HEADER(tcp) );
 }
@@ -72,7 +88,9 @@ u_char* isMPTCP_capable(struct sniff_tcp *tcp){
 	return first_MPTCP_sub(tcp,MPTCP_SUB_CAPABLE );
 }
 
-
+u_char* isMPTCP_fastclose(struct sniff_tcp *tcp){
+	return first_MPTCP_sub(tcp,MPTCP_SUB_FASTCLOSE );
+}
 
 u_char* isMPTCP_join(struct sniff_tcp *tcp){
 	return first_MPTCP_sub(tcp,MPTCP_SUB_JOIN );

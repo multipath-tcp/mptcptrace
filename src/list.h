@@ -22,7 +22,8 @@ struct List{
 	Node* head;
 	Node* tail;
 	int size;
-	void (*destroyElement)(void* element);
+	void (*destroyElement)(void* element, void *fix);
+	void *argDestroy;
 };
 
 struct OrderedList{
@@ -39,8 +40,8 @@ void* exitMalloc(int size);
  * search for (with the search fun and the args)
  */
 
-List* newList(void (*destroyElement)(void* element));
-OrderedList* newOrderedList(void (*destroyElement)(void* element), int (*compare)(void* e1,void* e2));
+List* newList(void (*destroyElement)(void* element, void *fix),void *argDestroy);
+OrderedList* newOrderedList(void (*destroyElement)(void* element, void *fix), int (*compare)(void* e1,void* e2),void *argDestroy);
 Node* addElementHead(void* element, List* l);
 Node* addElementTail(void* element, List* l);
 /*
@@ -69,4 +70,6 @@ void removeHead(List *l);
 void removeHeadFree(List *l);
 Node* addElementOrderedUnique(void* element, OrderedList *ol, int *added);
 Node* addElementOrderedReverseUnique(void* element, OrderedList *ol, int *added);
+
+void freeNULL(void* f, void* n);
 #endif /* LIST_H_ */

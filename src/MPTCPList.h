@@ -13,17 +13,17 @@ int subflowsEqualWrapper(void* s1, int pos, void* s2, void* acc);
 int searchMPTCPConnection(void* mc, int pos, void* searchFun, void *acc);
 
 mptcp_sf* getSubflowFromIPTCP(List *l,struct sniff_ip *ip, struct sniff_tcp *tcp, int *way);
-mptcp_sf* getSubflow(List *l,mptcp_sf *msf);
-void add_MPTCP_conn_syn(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp);
-void add_MPTCP_conn_synack(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp, List *lostSynCapable);
-void updateListCapable(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp, List *lostSynCapable, struct timeval ts);
+mptcp_sf* getSubflow(void *l,mptcp_sf *msf);
+void add_MPTCP_conn_syn(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, void *ht, struct timeval ts);
+void add_MPTCP_conn_synack(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, List *lostSynCapable, void *ht);
+void updateListCapable(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, void *lostSynCapable, struct timeval ts, void *ht);
 int checkSynAckJoin(mptcp_sf *msf);
-void add_MPTCP_join_synack(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp);
+void add_MPTCP_join_synack(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp);
 int compareHash(void* element, int pos, void* arg, void *acc);
-mptcp_conn* getConnectionFromHash(List* l,u_char* hash);
+mptcp_conn* getConnectionFromHash(void* l,u_char* hash);
 
-void add_MPTCP_join_syn(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp);
-void updateListJoin(List* l,  struct sniff_ip *ip, struct sniff_tcp *tcp);
+void add_MPTCP_join_syn(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, void *ht, struct timeval ts);
+void updateListJoin(void* l,  struct sniff_ip *ip, struct sniff_tcp *tcp, void *ht, struct timeval ts);
 void printMPTCPSubflow(void* element, int pos, void* fix, void* acc);
 void printMPTCPConnections(void* element, int pos, void* fix, void* acc);
 void printAllConnections(List *l);
@@ -37,5 +37,13 @@ int beforeUI(unsigned int ui1, unsigned int ui2);
 int afterUI(unsigned int ui1, unsigned int ui2);
 int afterOrEUI(unsigned int ui1, unsigned int ui2);
 int beforeOrEUI(unsigned int ui1, unsigned int ui2);
+
+void addMPTCPConnection(void *l, mptcp_conn *mc, int update);
+void addMPTCPSubflow(void *local, void *global, mptcp_sf *msf);
+void closeConn(void *l, void *ht, mptcp_conn *mc);
+void rmConn(void *l, mptcp_conn *mc);
+
+void rmTCP(void *l, struct sniff_ip *ip, struct sniff_tcp *tcp);
+void setHalfClosed(void *l, struct sniff_ip *ip, struct sniff_tcp *tcp);
 
 #endif /* MPTCPLIST_H_ */
