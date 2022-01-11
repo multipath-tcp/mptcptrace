@@ -10,6 +10,9 @@ else
 	AC_MSG_ERROR([You need pkg-config])
 fi
 
+AC_DEFINE([USE_HASHTABLE], [1], [Use a hashtable for better scale])
+AC_DEFINE([ENDCONN], [1], [Mark connections end])
+
 PKG_CHECK_MODULES([CHECK], [check >= 0.9.4])
 PKG_CHECK_MODULES([CRYPTO], [libcrypto])
 AC_SUBST(CRYPTO_CFLAGS)
