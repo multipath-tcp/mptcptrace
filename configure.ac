@@ -1,4 +1,4 @@
-AC_INIT([mptcptrace], [1.0], [benjamin.hesmans@uclouvain.be])
+AC_INIT([mptcptrace], [m4_esyscmd_s([git describe --abbrev=0 --dirty --always])], [benjamin.hesmans@uclouvain.be])
 AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE([foreign -Wall -Werror])
 

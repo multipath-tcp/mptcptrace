@@ -8,6 +8,8 @@
 #ifndef MPTCPTRACE_H_
 #define MPTCPTRACE_H_
 
+#include "config.h"
+
 #include "list.h"
 #include <sys/time.h>
 #include "uthash.h"
