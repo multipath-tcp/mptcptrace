@@ -45,6 +45,7 @@ struct logLevel{
 
 void printLogHelp();
 void incCounter(int counterID, int way);
+void initTraceInfo();
 void destroyTraceInfo();
 void mplog(int level, char* fmt, ...);
 void mplogmsf(int level, mptcp_sf *msf, char* fmt, ...);

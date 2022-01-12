@@ -14,6 +14,7 @@ int searchMPTCPConnection(void* mc, int pos, void* searchFun, void *acc);
 
 mptcp_sf* getSubflowFromIPTCP(List *l,struct sniff_ip *ip, struct sniff_tcp *tcp, int *way);
 mptcp_sf* getSubflow(void *l,mptcp_sf *msf);
+int checkServerKey(u_char *k);
 void add_MPTCP_conn_syn(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, void *ht, struct timeval ts);
 void add_MPTCP_conn_synack(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, List *lostSynCapable, void *ht);
 void updateListCapable(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, void *lostSynCapable, struct timeval ts, void *ht);
@@ -42,8 +43,10 @@ void addMPTCPConnection(void *l, mptcp_conn *mc, int update);
 void addMPTCPSubflow(void *local, void *global, mptcp_sf *msf);
 void closeConn(void *l, void *ht, mptcp_conn *mc);
 void rmConn(void *l, mptcp_conn *mc);
+void rmLostSyn(void *l, mptcp_sf *msf);
 
 void rmTCP(void *l, struct sniff_ip *ip, struct sniff_tcp *tcp);
 void setHalfClosed(void *l, struct sniff_ip *ip, struct sniff_tcp *tcp);
+void initSequenceNumber(mptcp_conn *mc, struct timeval ts);
 
 #endif /* MPTCPLIST_H_ */

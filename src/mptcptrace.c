@@ -18,6 +18,7 @@
 #include <sys/time.h>
 #include <errno.h>
 #include <dirent.h>
+#include <ctype.h>
 
 #include "string.h"
 #include "list.h"
@@ -27,6 +28,7 @@
 #include "MPTCPList.h"
 #include "graph.h"
 #include "traceInfo.h"
+#include "timingTools.h"
 
 
 DIR  *dir;
@@ -353,6 +355,75 @@ int ends_with(const char* name, const char* extension )
   return 0;
 }
 
+int processFile(char * file, List *l, List *lostSynCapable, List *tokenht){
+	int offset;
+	int ip_header_len; // not in the standard way...
+	pcap_t *handle;
+	const u_char   *packet;
+	struct pcap_pkthdr header;
+	struct sniff_tcp *tcp_segment;
+	struct sniff_ip *ip_packet;
+	struct timeval nextCheck;
+
+	// used for stats. When we use a dir, this will change for each file.
+	// stats will have the name of the file that contain the end of the
+	// connection or generetes the time out.
+	// TODO we may also add dir info... Requires other changes in the code.
+	filename = file;
+
+	if(openFile(file, &offset,&handle) != 0){
+		fprintf(stderr,"Couldn't open the file %s\n",file);
+		exit(1);
+	}
+	packet = pcap_next(handle, &header);
+	nextCheck=header.ts;
+	nextCheck.tv_sec += timeout;
+	while (packet != NULL) {
+		if (isIPVersionCorrect((struct sniff_ip *) (packet + offset)) /*&&
+			isTCP((struct sniff_ip *) (packet + offset))*/) {
+				ip_header_len = get_ip_header_len(packet,offset);
+				if(ip_header_len > 0){
+					ip_packet = (struct sniff_ip *) (packet + offset);
+					tcp_segment=(struct sniff_tcp*) (packet + offset + ip_header_len);
+					struct timeval ts;
+					if(isMPTCP_capable(tcp_segment))
+						updateListCapable(l,ip_packet,tcp_segment,lostSynCapable, header.ts, tokenht);
+
+					if(isMPTCP_join(tcp_segment))
+						updateListJoin(l,ip_packet,tcp_segment, tokenht, header.ts);
+
+					if(isMPTCP_dss(tcp_segment))
+						handle_MPTCP_DSS(l,ip_packet, tcp_segment, header.ts, tokenht);
+
+					if(isMPTCP_addAddr(tcp_segment) && add_addr)
+						handle_MPTCP_ADDADDR(l,ip_packet,tcp_segment,header.ts);
+
+					if(isMPTCP_rmAddr(tcp_segment) && rm_addr)
+						handle_MPTCP_RMADDR(l,ip_packet,tcp_segment,header.ts);
+
+					if(isMPTCP_fastclose(tcp_segment))
+						handle_MPTCP_FASTCLOSE(l,ip_packet,tcp_segment,header.ts,tokenht);
+
+					if(isRSTSegment(tcp_segment)){
+						rmTCP(l, ip_packet, tcp_segment);
+					}
+					if(isFINSegment(tcp_segment)){
+						setHalfClosed(l, ip_packet, tcp_segment);
+					}
+				}
+		}
+		packet = pcap_next(handle, &header);
+		if(timeout > 0 && tv_cmp(nextCheck,header.ts) < 0){
+			mplog(BUG, "Ok we should do the timeout check ! \n");
+			removeTimedOut(nextCheck,tokenht);
+			nextCheck.tv_sec += timeout;
+		}
+	}
+	pcap_close(handle);
+	return 0;
+
+}
+
 void  processDir(void *l, void *lostSynCapable, void *tokenht){
 	if ( (dir = opendir(trace_dir) ) ==NULL )
 		perror ("could not open directory");
@@ -415,76 +486,6 @@ int mainProcess(){
 #endif
 	return 0;
 }
-
-int processFile(char * file, List *l, List *lostSynCapable, List *tokenht){
-	int offset;
-	int ip_header_len; // not in the standard way...
-	pcap_t *handle;
-	const u_char   *packet;
-	struct pcap_pkthdr header;
-	struct sniff_tcp *tcp_segment;
-	struct sniff_ip *ip_packet;
-	struct timeval nextCheck;
-
-	// used for stats. When we use a dir, this will change for each file.
-	// stats will have the name of the file that contain the end of the
-	// connection or generetes the time out.
-	// TODO we may also add dir info... Requires other changes in the code.
-	filename = file;
-
-	if(openFile(file, &offset,&handle) != 0){
-		fprintf(stderr,"Couldn't open the file %s\n",file);
-		exit(1);
-	}
-	packet = pcap_next(handle, &header);
-	nextCheck=header.ts;
-	nextCheck.tv_sec += timeout;
-	while (packet != NULL) {
-		if (isIPVersionCorrect((struct sniff_ip *) (packet + offset)) /*&&
-			isTCP((struct sniff_ip *) (packet + offset))*/) {
-				ip_header_len = get_ip_header_len(packet,offset);
-				if(ip_header_len > 0){
-					ip_packet = (struct sniff_ip *) (packet + offset);
-					tcp_segment=(struct sniff_tcp*) (packet + offset + ip_header_len);
-					struct timeval ts;
-					if(isMPTCP_capable(tcp_segment))
-						updateListCapable(l,ip_packet,tcp_segment,lostSynCapable, header.ts, tokenht);
-
-					if(isMPTCP_join(tcp_segment))
-						updateListJoin(l,ip_packet,tcp_segment, tokenht, header.ts);
-
-					if(isMPTCP_dss(tcp_segment))
-						handle_MPTCP_DSS(l,ip_packet, tcp_segment, header.ts, tokenht);
-
-					if(isMPTCP_addAddr(tcp_segment) && add_addr)
-						handle_MPTCP_ADDADDR(l,ip_packet,tcp_segment,header.ts);
-
-					if(isMPTCP_rmAddr(tcp_segment) && rm_addr)
-						handle_MPTCP_RMADDR(l,ip_packet,tcp_segment,header.ts);
-
-					if(isMPTCP_fastclose(tcp_segment, tokenht))
-						handle_MPTCP_FASTCLOSE(l,ip_packet,tcp_segment,header.ts,tokenht);
-
-					if(isRSTSegment(tcp_segment)){
-						rmTCP(l, ip_packet, tcp_segment);
-					}
-					if(isFINSegment(tcp_segment)){
-						setHalfClosed(l, ip_packet, tcp_segment);
-					}
-				}
-		}
-		packet = pcap_next(handle, &header);
-		if(timeout > 0 && tv_cmp(nextCheck,header.ts) < 0){
-			mplog(BUG, "Ok we should do the timeout check ! \n");
-			removeTimedOut(nextCheck,tokenht);
-			nextCheck.tv_sec += timeout;
-		}
-	}
-	pcap_close(handle);
-	return 0;
-
-}
-
 
 int main(int argc, char *argv[]){
 	fprintf(stderr,"MPTCP trace V0.0 alpha : says Hello.\n");
