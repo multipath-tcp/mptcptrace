@@ -27,7 +27,8 @@
 #include "timingTools.h"
 #include "traceInfo.h"
 
-int id_con=0;
+/* the first connection will have the ID 0 */
+int id_con = -1;
 
 //TODO TODO il faut faire le memset pour pouvoir utiliseer une fo de hash (sil y a du padding)
 #ifdef USE_HASHTABLE
