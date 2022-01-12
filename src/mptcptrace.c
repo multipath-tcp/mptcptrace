@@ -355,7 +355,7 @@ int ends_with(const char* name, const char* extension )
   return 0;
 }
 
-int processFile(char * file, List *l, List *lostSynCapable, List *tokenht){
+int processFile(char * file, void *l, void *lostSynCapable, void *tokenht){
 	int offset;
 	int ip_header_len; // not in the standard way...
 	pcap_t *handle;
