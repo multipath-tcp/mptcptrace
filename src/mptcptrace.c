@@ -12,11 +12,14 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <unistd.h>
 #include <netinet/tcp.h>
 #include <openssl/sha.h>
 #include <openssl/hmac.h>
 #include <sys/time.h>
+#include <errno.h>
+#include <dirent.h>
+#include <ctype.h>
+
 #include "string.h"
 #include "list.h"
 #include "mptcptrace.h"
@@ -24,16 +27,24 @@
 #include "allocations.h"
 #include "MPTCPList.h"
 #include "graph.h"
+#include "traceInfo.h"
+#include "timingTools.h"
 
-char *filename = NULL;
-int offset_opt = -1;
-int gpInterv = 0;
-int Vian = 0;
-int maxSeqQueueLength = 0; // back log we want to keep to check for reinjection, if 0, infinite back log.
-int flight_select=0;
-int rtt_select=0;
-int add_addr = 0;
-int rm_addr = 0;
+
+DIR  *dir;
+char *trace_dir 		= NULL;
+char *filename			= NULL;
+
+int offset_opt			= -1;
+int gpInterv			= 0;
+int Vian				= 0;
+int maxSeqQueueLength	= 0; // back log we want to keep to check for reinjection, if 0, infinite back log.
+int flight_select		= 0;
+int rtt_select			= 0;
+int add_addr			= 0;
+int rm_addr				= 0;
+int paramLevel			= 0;
+int timeout				= -1;
 
 void printHelp(){
 	printf("mptcptrace help :\n");
@@ -41,6 +52,7 @@ void printHelp(){
 	printf("\t -s : generate sequence number graph\n");
 	printf("\t -F : generate MPTCP window/flight size/tcp subflow flight sizes' sum and right edge/ack graph\n");
 	printf("\t -G x : generate MPTCP goodput, interval is defined by x\n");
+	printLogHelp();
 }
 
 void write_info(){
@@ -52,7 +64,7 @@ void write_info(){
 
 int parseArgs(int argc, char *argv[]){
 	int c;
-	while ((c = getopt (argc, argv, "haG:sARSr:f:o:F:w:q:")) != -1)
+	while ((c = getopt (argc, argv, "haG:sARSr:f:d:o:F:w:q:l:t:")) != -1)
 		switch (c){
 		case 'A':
 			add_addr=1;
@@ -69,11 +81,20 @@ int parseArgs(int argc, char *argv[]){
 		case 'q':
 			maxSeqQueueLength = atoi(optarg);
 			break;
+		case 'l':
+			paramLevel = atoi(optarg);
+			break;
 		case 'o':
 			offset_opt = atoi(optarg);
 			break;
+		case 't':
+			timeout = atoi(optarg);
+			break;
 		case 'f':
 			filename = optarg;
+			break;
+		case 'd':
+			trace_dir = optarg;
 			break;
 		case 'h':
 			printHelp();
@@ -117,15 +138,15 @@ int parseArgs(int argc, char *argv[]){
 		default:
 			abort ();
 		}
-	return filename == NULL ? 1 : 0;
+	return (filename == NULL)&&(trace_dir == NULL)  ? 1 : 0;
 }
 
-int openFile(int *offset, pcap_t **handle){
+int openFile(const char * file, int *offset, pcap_t **handle){
 	char           errbuf[PCAP_ERRBUF_SIZE];
 	int type;
-	*handle = pcap_open_offline(filename, errbuf);
+	*handle = pcap_open_offline(file, errbuf);
 	if (*handle == NULL) {
-		fprintf(stderr, "Couldn't open file %s: %s\n", filename, errbuf);
+		fprintf(stderr, "Couldn't open file %s: %s\n", file, errbuf);
 		return (2);
 	}
 	if(offset_opt > -1){
@@ -136,11 +157,11 @@ int openFile(int *offset, pcap_t **handle){
 		type = pcap_datalink(*handle);
 		switch(type){
 		case DLT_EN10MB:
-			fprintf(stderr,"ethernet ?\n");
+			mplog(LOGALL, "ethernet ?\n");
 			*offset = 14;
 			break;
 		case DLT_LINUX_SLL:
-			fprintf(stderr,"linux cooked ?\n");
+			mplog(LOGALL, "linux cooked ?\n");
 			*offset = 16;
 			break;
 		default:
@@ -150,7 +171,8 @@ int openFile(int *offset, pcap_t **handle){
 	}
 	return 0;
 }
-void handle_MPTCP_ADDADDR(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp, struct timeval ts){
+
+void handle_MPTCP_ADDADDR(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, struct timeval ts){
 	int way;
 
 	mptcp_sf *msf = getSubflowFromIPTCP(l,ip,tcp,&way);
@@ -171,7 +193,7 @@ void handle_MPTCP_ADDADDR(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp, s
 	}
 }
 
-void handle_MPTCP_RMADDR(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp, struct timeval ts){
+void handle_MPTCP_RMADDR(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, struct timeval ts){
 	int way,n,i,id;
 
 	mptcp_sf *msf = getSubflowFromIPTCP(l,ip,tcp,&way);
@@ -186,7 +208,30 @@ void handle_MPTCP_RMADDR(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp, st
 	}
 }
 
-void handle_MPTCP_DSS(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp, struct timeval ts){
+void handle_MPTCP_FASTCLOSE(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, struct timeval ts, void *ht){
+	int way;
+	mptcp_sf *msf = getSubflowFromIPTCP(l,ip,tcp,&way);
+	//TODO this is a first a not so good approach, we should check if the other side sends reset in reply to this.
+	incCounter(FAST_CLOSE_SEEN_COUNTER,way);
+	if(msf){
+		incCounter(FAST_CLOSE_COUNTER,way);
+		mplog(LOGALL,"%s fast close \n",__func__);
+		rmConn(ht,msf->mc_parent);
+		closeConn(l,  NULL, msf->mc_parent);
+	}
+	else{
+		//TODO it may be a fast close retransmission.
+		mplog(LOGALL,"No ref conn to fast close\n");
+	}
+}
+
+void buildLastSeq(mptcp_conn *mc, mptcp_map *seq, int way){
+	mptcp_map *endSeq = new_mpm();
+	memcpy(endSeq,seq,sizeof(mptcp_map));
+	mc->mci->finSeq[way] = endSeq;
+}
+
+void handle_MPTCP_DSS(void* l, struct sniff_ip *ip, struct sniff_tcp *tcp, struct timeval ts, void *ht){
 	mptcp_map *mpmap;
 	mptcp_ack *mpack;
 	u_char* mpdss = first_MPTCP_sub(tcp,MPTCP_SUB_DSS);
@@ -197,10 +242,15 @@ void handle_MPTCP_DSS(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp, struc
 		//fprintf(stderr,"Error DSS found but connection not found....\n");
 		return;
 	}
+	if(checkServerKey(msf->mc_parent->server_key)){
+		mplogmsf(WARN, msf, "Server key is unknown, I can't do the match\n");
+		return;
+	}
+	msf->mc_parent->mci->lastActivity=ts;
 	int i;
 	//TODO gérer la partie TCP avant les call, retirer le raw TCP des fo modules ?
 	for(i=0;i<TCP_MAX_GRAPH;i++) if(modules[i].activated)  tcpModules[i].handleTCP(ip,tcp, msf, msf->mc_parent->graphdata[i], msf->mc_parent->mci, way);
-	for(i=0;i<MAX_GRAPH;i++){
+	//for(i=0;i<MAX_GRAPH;i++){
 		if(*(mpdss+3) & 0x04){
 			mpmap = new_mpm();
 			mpmap->ref_count++;
@@ -211,7 +261,16 @@ void handle_MPTCP_DSS(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp, struc
 			mpmap->injectCount=1;
 			mpmap->injectOnSF = 0;
 			mpmap->injectOnSF |= 1 << msf->id;
-			if(modules[i].activated) modules[i].handleMPTCPSeq(tcp, msf, mpmap, msf->mc_parent->graphdata[i], msf->mc_parent->mci, way);
+			for(i=0;i<MAX_GRAPH;i++) if(modules[i].activated) modules[i].handleMPTCPSeq(tcp, msf, mpmap, msf->mc_parent->graphdata[i], msf->mc_parent->mci, way);
+#ifdef ENDCONN
+				if(*(mpdss+3) & 0x10){
+					mplog(LOGALL, "%s Should end the connection\n",__func__);
+					buildLastSeq(msf->mc_parent,mpmap,way);
+				}
+				else{
+					//fprintf(stderr,"%s not a fin the connection\n",__func__);
+				}
+#endif
 			mpmap->ref_count--;
 			if(mpmap->ref_count==0){
 				//fprintf(stderr,"we should free this map");
@@ -224,14 +283,30 @@ void handle_MPTCP_DSS(List* l, struct sniff_ip *ip, struct sniff_tcp *tcp, struc
 			memcpy(&mpack->ack,mpdss+4,ACK_SIZE);
 			mpack->right_edge = ACK_MAP(mpack) + (ntohs(tcp->th_win) << msf->wscale[way]);
 			mpack->ts=ts;
-			if(modules[i].activated)  modules[i].handleMPTCPAck(tcp, msf, mpack, msf->mc_parent->graphdata[i], msf->mc_parent->mci, way);
+			for(i=0;i<MAX_GRAPH;i++) if(modules[i].activated)  modules[i].handleMPTCPAck(tcp, msf, mpack, msf->mc_parent->graphdata[i], msf->mc_parent->mci, way);
 			mpack->ref_count--;
 			if(mpack->ref_count==0){
 				//fprintf(stderr,"we should free this ack");
 				free(mpack);
 			}
+			if(msf->mc_parent->mci->finSeq[way] && msf->mc_parent->mci->finSeq[TOGGLE(way)]){
+				//fprintf(stderr,"%s ok both want to end %u %u\n",__func__,SEQ_MAP_END(msf->mc_parent->mci->finSeq[way]),SEQ_MAP_END(msf->mc_parent->mci->finSeq[TOGGLE(way)]));
+				if(msf->mc_parent->mci->lastack[TOGGLE(way)] && msf->mc_parent->mci->lastack[way] ){
+					//fprintf(stderr,"%s ok both want to end %u %u\n",__func__,ACK_MAP(msf->mc_parent->mci->lastack[TOGGLE(way)]),ACK_MAP(msf->mc_parent->mci->lastack[way]));
+					if(SEQ_MAP_END(msf->mc_parent->mci->finSeq[way]) == ACK_MAP(msf->mc_parent->mci->lastack[TOGGLE(way)]) &&
+							SEQ_MAP_END(msf->mc_parent->mci->finSeq[TOGGLE(way)]) == ACK_MAP(msf->mc_parent->mci->lastack[way]) ){
+						mplog(LOGALL, "%s ok both seems to finished... we should close here ! \n",__func__);
+						incCounter(FINISHED_COUNTER,C2S);
+						rmConn(ht,msf->mc_parent);
+						closeConn(l,  NULL, msf->mc_parent);
+					}
+				}
+			}
+#ifdef ENDCONN
+
+#endif
 		}
-	}
+//	}
 }
 int get_ip_header_len(const u_char* packet, int offset){
 	if( IP_V((struct sniff_ip *) (packet + offset)) == 4 ){
@@ -250,7 +325,37 @@ int get_ip_header_len(const u_char* packet, int offset){
 			return -1;
 	}
 }
-int mainLoop(){
+
+void removeTimedOut(struct timeval ts, void *tokenht){
+#ifndef USE_HASHTABLE
+	mplog(BUG,"sorry this option needs the hash table for now\n");
+#else
+	mptcp_conn *c, *tmp;
+	mptcp_conn **ht = tokenht;
+	ts.tv_sec -= timeout;
+	HASH_ITER(hh, *ht, c, tmp){
+		if(tv_cmp(c->mci->lastActivity,ts) < 0){
+			incCounter(CONN_TIMEOUT_COUNTER,C2S);
+			mplog(WARN, "Connection timedout !\n");
+			rmConn(ht,c);
+			closeConn(NULL,  NULL, c);
+		}
+	}
+
+#endif
+}
+
+int ends_with(const char* name, const char* extension )
+{
+  const char* ldot = strrchr(name, '.');
+  if (ldot != NULL) {
+    size_t length = strlen(extension);
+    return strncmp(ldot + 1, extension, length) == 0;
+  }
+  return 0;
+}
+
+int processFile(char * file, void *l, void *lostSynCapable, void *tokenht){
 	int offset;
 	int ip_header_len; // not in the standard way...
 	pcap_t *handle;
@@ -258,15 +363,21 @@ int mainLoop(){
 	struct pcap_pkthdr header;
 	struct sniff_tcp *tcp_segment;
 	struct sniff_ip *ip_packet;
-	List *l;
-	List *lostSynCapable;
-	l = newList(freecon);
-	lostSynCapable = newList(NULL);
-	if(openFile(&offset,&handle) != 0){
-		fprintf(stderr,"Couldn't open the file %s\n",filename);
+	struct timeval nextCheck;
+
+	// used for stats. When we use a dir, this will change for each file.
+	// stats will have the name of the file that contain the end of the
+	// connection or generetes the time out.
+	// TODO we may also add dir info... Requires other changes in the code.
+	filename = file;
+
+	if(openFile(file, &offset,&handle) != 0){
+		fprintf(stderr,"Couldn't open the file %s\n",file);
 		exit(1);
 	}
 	packet = pcap_next(handle, &header);
+	nextCheck=header.ts;
+	nextCheck.tv_sec += timeout;
 	while (packet != NULL) {
 		if (isIPVersionCorrect((struct sniff_ip *) (packet + offset)) /*&&
 			isTCP((struct sniff_ip *) (packet + offset))*/) {
@@ -276,13 +387,13 @@ int mainLoop(){
 					tcp_segment=(struct sniff_tcp*) (packet + offset + ip_header_len);
 					struct timeval ts;
 					if(isMPTCP_capable(tcp_segment))
-						updateListCapable(l,ip_packet,tcp_segment,lostSynCapable, header.ts);
+						updateListCapable(l,ip_packet,tcp_segment,lostSynCapable, header.ts, tokenht);
 
 					if(isMPTCP_join(tcp_segment))
-						updateListJoin(l,ip_packet,tcp_segment);
+						updateListJoin(l,ip_packet,tcp_segment, tokenht, header.ts);
 
 					if(isMPTCP_dss(tcp_segment))
-						handle_MPTCP_DSS(l,ip_packet, tcp_segment, header.ts);
+						handle_MPTCP_DSS(l,ip_packet, tcp_segment, header.ts, tokenht);
 
 					if(isMPTCP_addAddr(tcp_segment) && add_addr)
 						handle_MPTCP_ADDADDR(l,ip_packet,tcp_segment,header.ts);
@@ -290,28 +401,102 @@ int mainLoop(){
 					if(isMPTCP_rmAddr(tcp_segment) && rm_addr)
 						handle_MPTCP_RMADDR(l,ip_packet,tcp_segment,header.ts);
 
+					if(isMPTCP_fastclose(tcp_segment))
+						handle_MPTCP_FASTCLOSE(l,ip_packet,tcp_segment,header.ts,tokenht);
+
+					if(isRSTSegment(tcp_segment)){
+						rmTCP(l, ip_packet, tcp_segment);
+					}
+					if(isFINSegment(tcp_segment)){
+						setHalfClosed(l, ip_packet, tcp_segment);
+					}
 				}
 		}
 		packet = pcap_next(handle, &header);
+		if(timeout > 0 && tv_cmp(nextCheck,header.ts) < 0){
+			mplog(BUG, "Ok we should do the timeout check ! \n");
+			removeTimedOut(nextCheck,tokenht);
+			nextCheck.tv_sec += timeout;
+		}
 	}
 	pcap_close(handle);
-	printAllConnections(l);
-	apply(l,destroyModules,NULL,NULL);
-	destroyList(l);
-	destroyList(lostSynCapable);
 	return 0;
 
 }
 
+void  processDir(void *l, void *lostSynCapable, void *tokenht){
+	if ( (dir = opendir(trace_dir) ) ==NULL )
+		perror ("could not open directory");
+	if(chdir(trace_dir) != 0){
+		fprintf(stderr, "Can not change to dir %s...\n",trace_dir);
+		exit(-1);
+	}
+	struct dirent **namelist;
+	char* file;
+	// read list of files into namelist
+	int n = scandir(".", &namelist, 0, alphasort);
+	if (n < 0)	perror("scandir");
+	/* parse each file within directory */
+	int i = 0;
+	while (i < n) {
+		file = namelist[i]->d_name;
+		if (ends_with(file,"pcap"))
+			processFile(file,l,lostSynCapable,tokenht);
+		free(namelist[i]);
+		i++;
+		}
+	free(namelist);
+}
+
+int mainProcess(){
+#ifndef USE_HASHTABLE
+	List *l;
+	List *lostSynCapable;
+	l = newList(freecon,NULL);
+	lostSynCapable = newList(NULL,NULL);
+	List *tokenht = l;
+#else
+	mptcp_sf * _l = NULL;
+	mptcp_sf * _lostSynCapable = NULL;
+	mptcp_conn * _tokenht  = NULL;
+	mptcp_sf **l = &_l;
+	mptcp_sf **lostSynCapable = &_lostSynCapable ;
+	mptcp_conn **tokenht  = &_tokenht;
+#endif
+	if (trace_dir == NULL){
+		processFile(filename,l,lostSynCapable,tokenht);
+	}
+	else{
+		processDir(l,lostSynCapable,tokenht);
+	}
+#ifndef USE_HASHTABLE
+	printAllConnections(l);
+	apply(l,destroyModules,NULL,NULL);
+	destroyList(l);
+	destroyList(lostSynCapable);
+#else
+	//USE ITER on l, dont forget the implicit free con
+	mptcp_conn *c, *tmp;
+	HASH_ITER(hh, *tokenht, c, tmp){
+		destroyModules(c,0,NULL,NULL);
+		printMPTCPConnections(c,0,stdout,NULL);
+		freecon(c,NULL);
+	}
+
+#endif
+	return 0;
+}
 
 int main(int argc, char *argv[]){
-	printf("MPTCP trace V0.0 alpha : says Hello.\n");
+	fprintf(stderr,"MPTCP trace V0.0 alpha : says Hello.\n");
+	initTraceInfo();
 	if(parseArgs(argc,argv) != 0){
 		fprintf(stderr, "Could not parse the args...\n");
 		printHelp();
 		exit(1);
 	}
-	mainLoop();
+	mainProcess();
 	write_info();
+	destroyTraceInfo();
 
 }

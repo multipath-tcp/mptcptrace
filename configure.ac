@@ -1,4 +1,4 @@
-AC_INIT([mptcptrace], [1.0], [benjamin.hesmans@uclouvain.be])
+AC_INIT([mptcptrace], [m4_esyscmd_s([git describe --abbrev=0 --dirty --always])], [benjamin.hesmans@uclouvain.be])
 AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE([foreign -Wall -Werror])
 
@@ -9,6 +9,9 @@ else
 	AC_MSG_RESULT([no]);
 	AC_MSG_ERROR([You need pkg-config])
 fi
+
+AC_DEFINE([USE_HASHTABLE], [1], [Use a hashtable for better scale])
+AC_DEFINE([ENDCONN], [1], [Mark connections end])
 
 PKG_CHECK_MODULES([CHECK], [check >= 0.9.4])
 PKG_CHECK_MODULES([CRYPTO], [libcrypto])

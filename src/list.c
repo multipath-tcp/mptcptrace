@@ -36,20 +36,21 @@ Node* newNode(void *element){
 	return n;
 }
 
-List* newList(void (*destroyElement)(void* element)){
+List* newList(void (*destroyElement)(void* element, void *fix),void *argDestroy){
 	List* l = (List*) exitMalloc(sizeof(List));
 	l->head=NULL;
 	l->size=0;
 	l->destroyElement = destroyElement;
 	l->tail = NULL;
+	l->argDestroy=argDestroy;
 	return l;
 }
 
 
 
-OrderedList* newOrderedList(void (*destroyElement)(void* element), int (*compare)(void* e1,void* e2)){
+OrderedList* newOrderedList(void (*destroyElement)(void* element, void *fix), int (*compare)(void* e1,void* e2),void *argDestroy){
 	OrderedList *ol = (OrderedList*) exitMalloc(sizeof(OrderedList));
-	ol->l = newList(destroyElement);
+	ol->l = newList(destroyElement,argDestroy);
 	ol->compare = compare;
 	return ol;
 }
@@ -191,8 +192,8 @@ Node* addElementOrderedUnique(void* element, OrderedList *ol, int *added){
 }
 
 void destroyElement(void* element, int pos, void* fix, void* acc){
-	void (*destroyElement)(void* element) = (void (*)(void*)) fix;
-	destroyElement(element);
+	void (*destroyElement)(void* element,void *fix) = (void (*)(void*, void*)) fix;
+	destroyElement(element,acc);
 }
 Node* addElementOrderedReverse(void* element, OrderedList *ol){
 	Node *n = applyUntilNodeReverse(ol->l,doNothing,compareWrapperReverse,ol->compare,element);
@@ -211,7 +212,7 @@ Node* addElementOrderedReverseUnique(void* element, OrderedList *ol, int *added)
 
 void destroyList(List* l){
 	if(l->destroyElement != NULL)
-		apply(l,destroyElement,l->destroyElement,NULL);
+		apply(l,destroyElement,l->destroyElement,l->argDestroy);
 	int i=0;
 	Node *n = l->head, *tmp;
 	for(i=0 ; i < l->size;i++){

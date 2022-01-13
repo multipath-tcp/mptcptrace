@@ -8,8 +8,21 @@
 #ifndef MPTCPTRACE_H_
 #define MPTCPTRACE_H_
 
+#include "config.h"
+
 #include "list.h"
 #include <sys/time.h>
+#include "uthash.h"
+#include <netinet/in.h>
+
+
+//#ifndef USE_HASHTABLE
+//#define USE_HASHTABLE
+//#endif
+
+//#define USE_HASHTABLE
+
+
 
 #define REVERT 1
 #define DONOTREVERT 0
@@ -33,6 +46,7 @@
 #define MPTCP_SUB_DSS		2
 #define MPTCP_ADD_ADDR		3
 #define MPTCP_RM_ADDR		4
+#define MPTCP_SUB_FASTCLOSE 7
 
 #define TCP_OPT_WSCALE		3
 
@@ -49,7 +63,7 @@
 #define TCP_WIN_FLIGHT		0
 #define TCP_MAX_GRAPH		1
 
-
+#define HASH_SIZE			4
 
 typedef struct mptcp_sf mptcp_sf;
 typedef struct mptcp_conn mptcp_conn;
@@ -74,6 +88,8 @@ struct MPTCPConnInfo{
 	mptcp_ack *lastack[WAYS];
 	mptcp_map *firstSeq[WAYS];
 	unsigned int lastAckSize[WAYS];
+	mptcp_map *finSeq[WAYS];
+	struct timeval lastActivity;
 	//win etc.
 };
 
@@ -100,6 +116,8 @@ typedef union {
 	struct in6_addr in6;
 } addr_storage;
 
+#define HALF_CLOSED 666
+
 struct mptcp_sf{
 	sa_family_t	family;
 	int id;
@@ -121,6 +139,9 @@ struct mptcp_sf{
 	//unacked by subflow
 	OrderedList *tcpUnacked[WAYS];
 	unsigned int *tcpLastAck[WAYS];
+#ifdef USE_HASHTABLE
+	UT_hash_handle hh;
+#endif
 };
 
 struct mptcp_conn{
@@ -135,6 +156,10 @@ struct mptcp_conn{
 
 	FILE* addAddr;
 	FILE* rmAddr;
+#ifdef USE_HASHTABLE
+	UT_hash_handle hh;
+	u_char hash_s[HASH_SIZE];
+#endif
 };
 
 struct mptcp_map{
@@ -235,6 +260,8 @@ struct sniff_tcp {
 
 #define SYN_SET(tcp) (tcp->th_flags & TH_SYN)
 #define ACK_SET(tcp) (tcp->th_flags & TH_ACK)
+#define RST_SET(tcp) (tcp->th_flags & TH_RST)
+#define FIN_SET(tcp) (tcp->th_flags & TH_FIN)
 
 #define SEQ_MAP_START(mpm) ((unsigned int)(ntohl(*((int*)(&mpm->start)))))
 #define SEQ_MAP_LEN(mpm) ((unsigned int)(ntohs(*((int*)(&mpm->len)))))
@@ -259,5 +286,8 @@ struct sniff_tcp {
 extern int maxSeqQueueLength;
 extern int add_addr;
 extern int rm_addr;
+
+extern int paramLevel;
+
 
 #endif /* MPTCPTRACE_H_ */

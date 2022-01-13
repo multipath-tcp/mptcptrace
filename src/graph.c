@@ -14,6 +14,8 @@
 #include "mptcptrace.h"
 #include "allocations.h"
 #include "MPTCPList.h"
+#include "traceInfo.h"
+#include "timingTools.h"
 
 
 
@@ -374,8 +376,8 @@ void initSeq(void** graphData, MPTCPConnInfo *mci){
 	data->graph[C2S] = Boris[Vian].openFile("seq",mci->mc->id,C2S);
 	Boris[Vian].writeHeader(data->graph[S2C],wayString[S2C],"Time sequence",TIMEVAL,DOUBLE,LABELTIME,LABELSEQ);
 	Boris[Vian].writeHeader(data->graph[C2S],wayString[C2S],"Time sequence",TIMEVAL,DOUBLE,LABELTIME,LABELSEQ);
-	data->seq[S2C] = newOrderedList(NULL,compareMap);
-	data->seq[C2S] = newOrderedList(NULL,compareMap);
+	data->seq[S2C] = newOrderedList(NULL,compareMap,NULL);
+	data->seq[C2S] = newOrderedList(NULL,compareMap,NULL);
 	data->reinject[S2C] = 0;
 	data->reinject[C2S] = 0;
 	for(i=0;i<MAX_SF;i++){
@@ -484,8 +486,8 @@ void handleNewSFSeq(mptcp_sf *msf, void* graphData, MPTCPConnInfo *mi){
 	seqData *data = ((seqData*) graphData);
 	char str[42];
 	sprintf(str,"subflow_%d",msf->id);
-	FILE *f =  fopen(str,"w");
-	fclose(f);
+	/*FILE *f =  fopen(str,"w");
+	fclose(f);*/
 
 	Boris[Vian].writeSeries(data->graph[C2S],"number",str);
 	Boris[Vian].writeSeries(data->graph[S2C],"number",str);
@@ -496,15 +498,17 @@ void handleNewSFSeq(mptcp_sf *msf, void* graphData, MPTCPConnInfo *mi){
  */
 
 void initCI(void** graphData, MPTCPConnInfo *mci){
-	printf("create global informations\n");
-	mci->unacked[S2C] = newOrderedList(free,compareMap);
-	mci->unacked[C2S] = newOrderedList(free,compareMap);
+	//printf("create global informations\n");
+	mci->unacked[S2C] = newOrderedList(freeNULL,compareMap,NULL);
+	mci->unacked[C2S] = newOrderedList(freeNULL,compareMap,NULL);
 	mci->lastack[S2C] = NULL;
 	mci->lastack[C2S] = NULL;
 	mci->firstSeq[S2C] = NULL;
 	mci->firstSeq[C2S] = NULL;
 	mci->lastAckSize[S2C] = 0;
 	mci->lastAckSize[C2S] = 0;
+	mci->finSeq[C2S] = 0;
+	mci->finSeq[S2C] = 0;
 }
 
 
@@ -514,10 +518,13 @@ void CISeq(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_map *seq,  void* graph
 	int added;
 	Node *n;
 	if(mi->firstSeq[way] == NULL){
+		//mi->firstSeq[way] = seq;
 		initSequenceNumber(msf->mc_parent,seq->ts);
+		mplogmsf(WARN,msf, "%s erf we may have lost the third ack...\n",__func__);
+		//incRefSeq(seq,1);
 	}
 	//if(mi->lastack[TOGGLE(way)] == NULL  ||  SEQ_MAP_END( seq ) >= ACK_MAP(mi->lastack[TOGGLE(way)]))
-	if(mi->lastack[TOGGLE(way)] == NULL  ||  afterOrEUI(SEQ_MAP_END( seq ), ACK_MAP(mi->lastack[TOGGLE(way)]))){
+	if(mi->lastack[TOGGLE(way)] == NULL  ||  afterUI(SEQ_MAP_END( seq ), ACK_MAP(mi->lastack[TOGGLE(way)]))){
 		n=addElementOrderedReverseUnique(seq,mi->unacked[way],&added);
 		if(added)
 			incRefSeqNode(n);
@@ -565,7 +572,7 @@ void CIAck(struct sniff_tcp *rawTCP, mptcp_sf *msf, mptcp_ack *ack,  void* graph
 
 }
 void destroyCI(void** graphData, MPTCPConnInfo *mci){
-	printf("Destroy global informations\n");
+	//printf("Destroy global informations\n");
 }
 
 /***
@@ -898,6 +905,10 @@ void writeStats(FILE *f, char *statName, int conID,unsigned int c2s, unsigned in
 void writeStatsD(FILE *f, char *statName, int conID,double c2s, double s2c){
 	fprintf(f,"%s;%i;%s;%f;%f\n",filename,conID,statName,c2s,s2c);
 }
+
+void writeStatsS(FILE *f, char *statName, int conID,char *c2s, char *s2c){
+	fprintf(f,"%s;%i;%s;%s;%s\n",filename,conID,statName,c2s,s2c);
+}
 void printCausedBy(void* element, int pos, void *fix, void *acc){
 	mptcp_sf *msf = (mptcp_sf*) element;
 	seqData *sData = (seqData*)(((couple*)fix)->x);
@@ -911,21 +922,79 @@ void printCausedBy(void* element, int pos, void *fix, void *acc){
 
 
 }
+void printSfCSV(void* element, int pos, void *fix, void *acc){
+	mptcp_sf *msf = (mptcp_sf*) element;
+	FILE* f = (FILE*) fix;
+	char str[42];
+	char straddrS[INET6_ADDRSTRLEN+1];
+	char straddrD[INET6_ADDRSTRLEN+1];
+	char *tcpDumpFilter =  acc;
+
+	sprintf(str,"sf_%i_ipVersion",msf->id);
+	writeStats(f,str,msf->mc_parent->id,msf->family == AF_INET6 ? 6 : 4,msf->family == AF_INET6 ? 6 : 4);
+
+	strcat(tcpDumpFilter, " ( ");
+
+	sprintf(str,"sf_%i_ip",msf->id);
+	if(msf->family == AF_INET){
+		strcat(tcpDumpFilter, "ip host ");
+		strcpy(straddrS,inet_ntoa(msf->ip_src.in));
+		strcpy(straddrD,inet_ntoa(msf->ip_dst.in));
+	}
+	else{
+		strcat(tcpDumpFilter , "ip6 host ");
+		inet_ntop(AF_INET6,&msf->ip_src.in6,straddrS,INET6_ADDRSTRLEN+1);
+		inet_ntop(AF_INET6,&msf->ip_dst.in6,straddrD,INET6_ADDRSTRLEN+1);
+
+	}
+	writeStatsS(f,str,msf->mc_parent->id, straddrS, straddrD );
+
+	strcat(tcpDumpFilter, straddrS);
+	strcat(tcpDumpFilter, " && tcp port ");
+	sprintf(str,"%u ",ntohs(msf->th_sport));
+	strcat(tcpDumpFilter,str);
+	if(msf->mc_parent->mptcp_sfs->size == pos + 1)
+		strcat(tcpDumpFilter, " ) ");
+	else
+		strcat(tcpDumpFilter, " ) || ");
+
+	sprintf(str,"sf_%i_port",msf->id);
+	writeStats(f,str,msf->mc_parent->id,ntohs(msf->th_sport),ntohs(msf->th_dport));
+
+}
 void destroyWFS(void** graphData, MPTCPConnInfo *mci){
 	seqData *sData = ((seqData*) mci->mc->graphdata[GRAPH_SEQUENCE] );
 	wFSData *wfsData = ((wFSData*) *graphData);
 	int i;
 	char str[42];
+	double acked[WAYS];
+	char tcpDumpFilter[10000] = " tcp && ( "; // other idea ?
+
+	if(mci->lastack[S2C] == NULL || mci->lastack[C2S] == NULL ||
+	   mci->firstSeq[S2C] == NULL || mci->firstSeq[C2S] == NULL ){
+		mplogmsf(BUG,mci->mc->mptcp_sfs->head->element,"Stats issues with the ack/seq for this connection\n");
+		//printMPTCPSubflow(mci->mc->mptcp_sfs->head->element,0,stderr,NULL);
+		fclose(wfsData->f);
+		free(wfsData);
+		return;
+	}
 	struct timeval tmp = mci->lastack[S2C]->ts ;
 	unsigned int injectPackSum[WAYS] = {0,0};
 	unsigned int injectOrigSum[WAYS] = {0,0};
 	tv_sub(&tmp,mci->firstSeq[C2S]->ts );
 	//TODO determine constant value
 	//writeStats(wfsData->f,"winFsClose",mci->mc->id,*(wfsData->n[C2S]),*(wfsData->n[S2C]));
+	writeStats(wfsData->f,"sfCount",mci->mc->id,mci->mc->mptcp_sfs->size, 0 );
 	writeStats(wfsData->f,"firstSeq",mci->mc->id,SEQ_MAP_START(mci->firstSeq[C2S]),SEQ_MAP_START(mci->firstSeq[S2C]) );
 	writeStats(wfsData->f,"lastAck",mci->mc->id,ACK_MAP(mci->lastack[C2S]),ACK_MAP(mci->lastack[S2C]) );
 	writeStatsD(wfsData->f,"conTime",mci->mc->id,tmp.tv_sec + tmp.tv_usec / 1000000.0,tmp.tv_sec + tmp.tv_usec / 1000000.0 );
-	writeStats(wfsData->f,"seqAcked",mci->mc->id,ACK_MAP(mci->lastack[TOGGLE(C2S)]) - SEQ_MAP_START(mci->firstSeq[C2S]),ACK_MAP(mci->lastack[TOGGLE(S2C)]) - SEQ_MAP_START(mci->firstSeq[S2C]));
+	acked[C2S] = afterOrEUI(ACK_MAP(mci->lastack[TOGGLE(C2S)]),  SEQ_MAP_START(mci->firstSeq[C2S])) ? ACK_MAP(mci->lastack[TOGGLE(C2S)]) - SEQ_MAP_START(mci->firstSeq[C2S]) : 0;
+	acked[S2C] = afterOrEUI(ACK_MAP(mci->lastack[TOGGLE(S2C)]),  SEQ_MAP_START(mci->firstSeq[S2C])) ? ACK_MAP(mci->lastack[TOGGLE(S2C)]) - SEQ_MAP_START(mci->firstSeq[S2C]) : 0;
+	writeStats(wfsData->f,"seqAcked",mci->mc->id, acked[C2S], acked[S2C]);
+	apply(mci->mc->mptcp_sfs,printSfCSV,wfsData->f,tcpDumpFilter);
+	strcat(tcpDumpFilter, " ) ");
+	writeStatsS(wfsData->f,"tcpDumpFilter",mci->mc->id,tcpDumpFilter,"");
+
 	if(modules[GRAPH_SEQUENCE].activated == ACTIVE_MODULE){
 		writeStats(wfsData->f,"bytesReinjected",mci->mc->id,sData->reinject[C2S],sData->reinject[S2C]);
 		writeStatsD(wfsData->f,"precentReinjected",mci->mc->id,sData->reinject[C2S]*1.0/(ACK_MAP(mci->lastack[TOGGLE(C2S)]) - SEQ_MAP_START(mci->firstSeq[C2S])) ,
